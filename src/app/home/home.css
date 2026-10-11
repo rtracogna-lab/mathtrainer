@@ -4,6 +4,17 @@
   text-align: center;
 }
 
+.home__back {
+  display: inline-block;
+  margin-bottom: 1.5rem;
+  color: #2b3a67;
+  text-decoration: none;
+}
+
+.home__back:hover {
+  text-decoration: underline;
+}
+
 .home__title {
   margin: 0 0 0.5rem;
   font-size: 2rem;

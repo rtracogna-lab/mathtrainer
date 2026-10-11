@@ -1,0 +1,15 @@
+<section class="home">
+  <a class="home__back" routerLink="/">&#8592; Torna alla scelta dell'abilità</a>
+  <h1 class="home__title">Scegli un gioco</h1>
+  <p class="home__subtitle">Prendi i numeri prima che tocchino terra!</p>
+
+  <div class="home__grid">
+    @for (game of games; track game.route) {
+      <a class="skill-card" [routerLink]="game.route">
+        <span class="skill-card__icon" aria-hidden="true">{{ game.symbol }}</span>
+        <h2 class="skill-card__title">{{ game.name }}</h2>
+        <p class="skill-card__description">{{ game.description }}</p>
+      </a>
+    }
+  </div>
+</section>

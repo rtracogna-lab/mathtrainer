@@ -23,6 +23,6 @@ describe('App', () => {
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('h1')?.textContent).toContain('Scegli');
-    expect(compiled.querySelectorAll('.skill-card').length).toBe(5);
+    expect(compiled.querySelectorAll('.skill-card').length).toBe(6);
   });
 });

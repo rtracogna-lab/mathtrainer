@@ -1,0 +1,90 @@
+<section class="skill-view">
+  <a class="skill-view__back" routerLink="/giochi">&#8592; Torna ai giochi</a>
+  <h1 class="skill-view__title"><span class="skill-view__symbol" aria-hidden="true">{{ texts().symbol }}</span> {{ texts().title }}</h1>
+
+  @if (phase() === 'intro') {
+    <section class="exercise-card" aria-labelledby="rain-title">
+      <h2 id="rain-title">Come si gioca</h2>
+      <ul class="rules">
+        <li>Dall'alto cadono numeri <span [innerHTML]="texts().range"></span>.</li>
+        <li>Tocca <strong>{{ texts().pick }}</strong> <span [innerHTML]="texts().goal"></span>: spariscono e la somma si aggiunge al bonus.</li>
+        <li>Se un numero tocca terra, il suo valore viene <strong>tolto</strong> dal bonus.</li>
+        <li>Se ci riesci con <strong>tre</strong> carte guadagni <span [innerHTML]="texts().triple"></span>.</li>
+        @if (hasJolly()) {
+          <li>Ogni tanto cade un <strong class="jolly-text">★ jolly</strong>: <span [innerHTML]="texts().jolly"></span>. Se tocca terra non perdi punti.</li>
+        }
+        @if (winBonus(); as target) {
+          <li>Parti con <strong>{{ startBonus() }} punti</strong>: arriva a <strong>{{ target }}</strong> per vincere! Se il bonus scende a 0 la partita finisce.</li>
+        } @else {
+          <li>Parti con <strong>{{ startBonus() }} punti</strong>: quando il bonus arriva a 0 la partita finisce.</li>
+        }
+      </ul>
+      <p class="rules-example">{{ texts().example }}</p>
+      <button class="primary-button" type="button" (click)="start()">Inizia</button>
+    </section>
+  } @else if (phase() === 'won') {
+    <section class="exercise-card" aria-labelledby="rain-title">
+      <div class="result-icon" aria-hidden="true">🏆</div>
+      <h2 id="rain-title">Hai vinto!</h2>
+      <p class="result-score">Sei arrivato a <strong>{{ bonus() }} punti</strong> in <strong>{{ seconds() }} secondi</strong> trovando <strong>{{ pairs() }}</strong> {{ texts().groups }}.</p>
+      <div class="result-actions">
+        <button class="primary-button" type="button" (click)="start()">Gioca ancora</button>
+      </div>
+    </section>
+  } @else if (phase() === 'over') {
+    <section class="exercise-card" aria-labelledby="rain-title">
+      <div class="result-icon" aria-hidden="true">💥</div>
+      <h2 id="rain-title">Bonus esaurito!</h2>
+      <p class="result-score">Hai resistito <strong>{{ seconds() }} secondi</strong> e trovato <strong>{{ pairs() }}</strong> {{ texts().groups }}.</p>
+      <p class="final-score">Bonus più alto raggiunto: <strong>{{ bestBonus() }}</strong></p>
+      <div class="result-actions">
+        <button class="primary-button" type="button" (click)="start()">Gioca ancora</button>
+      </div>
+    </section>
+  } @else {
+    <div class="exercise-card game-card">
+      <div class="game-status">
+        <p class="game-bonus" [class.game-bonus--low]="bonus() < 50" aria-live="polite">Bonus: <strong>{{ bonus() }}</strong>@if (winBonus(); as target) { <span class="game-bonus__target">/ {{ target }}</span> }</p>
+        <p class="game-info"><span class="game-info__groups">{{ texts().groups }}</span>: {{ pairs() }} · Livello {{ level() }} · {{ seconds() }} s</p>
+        <button class="secondary-button pause-button" type="button" (click)="togglePause()">{{ phase() === 'paused' ? 'Riprendi' : 'Pausa' }}</button>
+      </div>
+
+      <div class="game-field" [style.--lanes]="lanes" aria-label="Campo di gioco">
+        @for (number of numbers(); track number.id) {
+          <button
+            class="rain-number"
+            type="button"
+            [class.rain-number--selected]="selectedIds().includes(number.id)"
+            [class.rain-number--jolly]="number.jolly"
+            [attr.aria-label]="number.jolly ? 'Jolly' : null"
+            [class.rain-number--shake]="shakingIds().includes(number.id)"
+            [style.left]="laneLeft(number.lane)"
+            [style.top]="tileTop(number)"
+            [attr.aria-pressed]="selectedIds().includes(number.id)"
+            (pointerdown)="selectNumber(number.id)"
+            (keydown.enter)="selectNumber(number.id)"
+            (keydown.space)="selectNumber(number.id)"
+          >
+            {{ number.jolly ? '★' : number.value }}
+          </button>
+        }
+        @for (popup of popups(); track popup.id) {
+          <span class="rain-popup" [class.rain-popup--loss]="popup.kind === 'loss'" [style.left]="laneLeft(popup.lane)" [style.top]="tileTop(popup)" aria-hidden="true">{{ popup.text }}</span>
+        }
+        @if (phase() === 'paused') {
+          <div class="game-paused">In pausa</div>
+        }
+      </div>
+      <p class="selection-sum" aria-live="polite">
+        @if (selectionHasJolly()) {
+          {{ selectedLabels().join(' + ') }}
+        } @else if (selectedValues().length > 0) {
+          {{ selectedValues().join(' + ') }} = <strong>{{ selectedSum() }}</strong>
+        } @else {
+          &nbsp;
+        }
+      </p>
+      <p class="answer-help">{{ texts().hint }}</p>
+    </div>
+  }
+</section>

@@ -5,6 +5,8 @@ import { SubtractionComponent } from './skills/subtraction/subtraction';
 import { MultiplicationComponent } from './skills/multiplication/multiplication';
 import { DivisionComponent } from './skills/division/division';
 import { TablesComponent } from './skills/tables/tables';
+import { NumberRainComponent } from './games/number-rain/number-rain';
+import { GamesComponent } from './games/games';
 
 export const routes: Routes = [
 	{ path: '', component: HomeComponent, title: 'Allenamento di matematica' },
@@ -13,5 +15,8 @@ export const routes: Routes = [
 	{ path: 'sottrazione', component: SubtractionComponent, title: 'Sottrazione' },
 	{ path: 'moltiplicazione', component: MultiplicationComponent, title: 'Moltiplicazione' },
 	{ path: 'divisione', component: DivisionComponent, title: 'Divisione' },
+	{ path: 'giochi', component: GamesComponent, title: 'Giochi' },
+	{ path: 'pioggia-di-numeri', component: NumberRainComponent, title: 'Pioggia di numeri', data: { variant: 'rain' } },
+	{ path: 'amici-del-10', component: NumberRainComponent, title: 'Amici del 10', data: { variant: 'friends' } },
 	{ path: '**', redirectTo: '' },
 ];
