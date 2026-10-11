@@ -1,0 +1,14 @@
+<section class="home">
+  <h1 class="home__title">Scegli un'abilità</h1>
+  <p class="home__subtitle">Pronto a fare un po' di matematica? Seleziona l'esercizio con cui vuoi allenarti oggi.</p>
+
+  <div class="home__grid">
+    @for (skill of skills; track skill.route) {
+      <a class="skill-card" [routerLink]="skill.route">
+        <span class="skill-card__icon" aria-hidden="true">{{ skill.symbol }}</span>
+        <h2 class="skill-card__title">{{ skill.name }}</h2>
+        <p class="skill-card__description">{{ skill.description }}</p>
+      </a>
+    }
+  </div>
+</section>

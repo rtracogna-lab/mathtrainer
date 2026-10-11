@@ -1,0 +1,104 @@
+<section class="skill-view">
+  <a class="skill-view__back" routerLink="/">&#8592; Torna alla scelta dell'abilità</a>
+  <h1 class="skill-view__title"><span class="skill-view__symbol" aria-hidden="true">×</span> Tabelline</h1>
+
+  <section class="exercise-card" aria-labelledby="tables-title">
+
+    @if (selectedMode() === null) {
+      <p class="eyebrow">Ripasso tabelline</p>
+      <h2 id="tables-title">Scegli la modalita</h2>
+      <div class="level-list">
+        <button class="level-card easy" type="button" (click)="chooseMode('classic')">
+          <span class="level-name">Classica</span>
+          <span class="level-description">Scrivi il risultato e premi Enter</span>
+          <span class="level-arrow" aria-hidden="true">&#8599;</span>
+        </button>
+        <button class="level-card hard" type="button" (click)="chooseMode('choice')">
+          <span class="level-name">Scelta multipla</span>
+          <span class="level-description">Scegli il risultato giusto tra 6 proposte</span>
+          <span class="level-arrow" aria-hidden="true">&#8599;</span>
+        </button>
+      </div>
+    } @else if (isFinished()) {
+      <div class="result-icon" aria-hidden="true">🎉</div>
+      <p class="eyebrow">Allenamento completato</p>
+      <h2 id="tables-title">Bravissimo!</h2>
+      <p class="result-score">Hai risposto correttamente a <strong>{{ correctAnswers() }}</strong> domande su {{ totalQuestions }}.</p>
+      <p class="final-score">Punteggio finale: <strong>{{ totalScore() }}</strong></p>
+      <div class="results" aria-label="Risultati delle domande">
+        @for (result of answeredQuestions(); track $index) {
+          <div class="result-row">
+            <span class="result-operation">{{ result.first }} x {{ result.second }} = {{ result.answer }} @if (result.timedOut) { <span class="timed-out">· tempo scaduto</span> }</span>
+            <span>{{ result.seconds }} s</span>
+            <span class="result-status" [class.correct]="result.isCorrect" [class.incorrect]="!result.isCorrect" [attr.aria-label]="result.isCorrect ? 'Risposta corretta' : 'Risposta errata'">{{ result.isCorrect ? '&#10003;' : '&#10007;' }}</span>
+            <strong [class.negative-score]="result.score < 0">{{ result.score > 0 ? '+' : '' }}{{ result.score }}</strong>
+          </div>
+        }
+      </div>
+      <div class="result-actions">
+        <button class="secondary-button" type="button" (click)="changeMode()">Cambia modalita</button>
+        <button class="primary-button" type="button" (click)="restart()">Ricomincia</button>
+      </div>
+    } @else {
+      <div class="quiz-layout">
+        <aside class="answered-list" aria-label="Operazioni gia risolte">
+          <p class="history-title">Gia risolte</p>
+          @if (answeredQuestions().length === 0) {
+            <p class="empty-history">Le operazioni confermate appariranno qui.</p>
+          } @else {
+            @for (result of answeredQuestions(); track $index) {
+              <div class="answered-operation">{{ result.first }} x {{ result.second }} = {{ result.answer }} @if (result.timedOut) { <span class="timed-out">· tempo scaduto</span> }</div>
+            }
+          }
+        </aside>
+
+        <div class="current-quiz">
+          <div class="quiz-header">
+            <div>
+              <p class="eyebrow">Ripasso tabelline</p>
+              <p class="progress"><strong>{{ currentQuestionIndex() + 1 }}/10</strong></p>
+            </div>
+            <div class="timer" aria-live="polite" aria-label="Secondi trascorsi">&#9201; {{ elapsedSeconds() }} s</div>
+          </div>
+
+          <div class="question" aria-live="polite">
+            <span>{{ currentQuestion().first }}</span>
+            <span class="operator">x</span>
+            <span>{{ currentQuestion().second }}</span>
+            <span class="equals">=</span>
+            <span class="blank" aria-hidden="true">?</span>
+          </div>
+
+          @if (selectedMode() === 'classic') {
+            <label class="answer-label" for="answer">Scrivi il risultato e premi Enter</label>
+            <div class="answer-row">
+              <input
+                #answerInput
+                id="answer"
+                class="answer-input"
+                type="number"
+                inputmode="numeric"
+                min="0"
+                autocomplete="off"
+                [value]="answer()"
+                (input)="answer.set($any($event.target).value)"
+                (keydown.enter)="submitAnswer()"
+                aria-describedby="answer-help"
+              />
+              <button class="confirm-button" type="button" (click)="submitAnswer()">OK</button>
+            </div>
+            <p id="answer-help" class="answer-help">Il prossimo quiz comparira dopo la conferma.</p>
+          } @else {
+            <p class="answer-label">Scegli il risultato giusto</p>
+            <div class="choice-grid" [class.blinking]="choicesBlinking()">
+              @for (choice of choices(); track choice) {
+                <button class="choice-button" type="button" (click)="selectChoice(choice)">{{ choice }}</button>
+              }
+            </div>
+            <p class="answer-help">Il prossimo quiz comparira dopo la scelta.</p>
+          }
+        </div>
+      </div>
+    }
+  </section>
+</section>
