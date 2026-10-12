@@ -25,6 +25,10 @@
         }
       </ul>
       <p class="rules-example">{{ texts().example }}</p>
+      <label class="easy-toggle">
+        <input type="checkbox" [checked]="easy()" (change)="easy.set($any($event.target).checked)" />
+        <span><strong>🐢 Modalità facile</strong>: cadono più numeri che ti servono</span>
+      </label>
       <button class="primary-button" type="button" (click)="start()">Inizia</button>
     </section>
   } @else if (phase() === 'won') {
@@ -50,7 +54,7 @@
     <div class="exercise-card game-card">
       <div class="game-status">
         <p class="game-bonus" [class.game-bonus--low]="bonus() < 50" aria-live="polite">Bonus: <strong>{{ bonus() }}</strong>@if (winBonus(); as target) { <span class="game-bonus__target">/ {{ target }}</span> }</p>
-        <p class="game-info"><span class="game-info__groups">{{ texts().groups }}</span>: {{ pairs() }} · Livello {{ level() }} · {{ seconds() }} s</p>
+        <p class="game-info"><span class="game-info__groups">{{ texts().groups }}</span>: {{ pairs() }} · Livello {{ level() }} · {{ seconds() }} s@if (easy()) { · 🐢 Facile }</p>
         <button class="secondary-button pause-button" type="button" (click)="togglePause()">{{ phase() === 'paused' ? 'Riprendi' : 'Pausa' }}</button>
       </div>
 

@@ -10,6 +10,6 @@ describe('GamesComponent', () => {
     fixture.detectChanges();
 
     const cards = Array.from(fixture.nativeElement.querySelectorAll('.skill-card')) as HTMLAnchorElement[];
-    expect(cards.map((card) => card.getAttribute('href'))).toEqual(['/pioggia-di-numeri', '/amici-del-10', '/prodotto-bersaglio', '/divisione-bersaglio']);
+    expect(cards.map((card) => card.getAttribute('href'))).toEqual(['/pioggia-di-numeri', '/amici-del-10', '/sottrazione-bersaglio', '/prodotto-bersaglio', '/divisione-bersaglio']);
   });
 });

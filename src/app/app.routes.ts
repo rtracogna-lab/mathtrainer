@@ -19,6 +19,7 @@ export const routes: Routes = [
 	{ path: 'pioggia-di-numeri', component: NumberRainComponent, title: 'Pioggia di numeri', data: { variant: 'rain' } },
 	{ path: 'amici-del-10', component: NumberRainComponent, title: 'Amici del 10', data: { variant: 'friends' } },
 	{ path: 'prodotto-bersaglio', component: NumberRainComponent, title: 'Prodotto bersaglio', data: { variant: 'product' } },
+	{ path: 'sottrazione-bersaglio', component: NumberRainComponent, title: 'Sottrazione bersaglio', data: { variant: 'subtraction' } },
 	{ path: 'divisione-bersaglio', component: NumberRainComponent, title: 'Divisione bersaglio', data: { variant: 'division' } },
 	{ path: '**', redirectTo: '' },
 ];

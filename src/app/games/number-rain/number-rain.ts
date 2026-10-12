@@ -34,7 +34,7 @@ const TEXTS: Record<VariantId, Texts> = {
     pick: 'due o tre numeri',
     goal: 'la cui somma è un multiplo di 10 (10, 20, 30…)',
     reward: 'la somma si aggiunge al bonus',
-    landing: 'il suo valore viene <strong>tolto</strong> dal bonus',
+    landing: 'perdi <strong>metà</strong> del suo valore, arrotondata per difetto (7 → −3)',
     triple: 'il <strong>doppio</strong> della somma',
     jolly: 'porta la somma al multiplo di 10 successivo (37 + ★ = 40)',
     target: null,
@@ -49,7 +49,7 @@ const TEXTS: Record<VariantId, Texts> = {
     pick: 'due o tre numeri',
     goal: 'che insieme fanno esattamente <strong>10</strong>',
     reward: 'la somma si aggiunge al bonus',
-    landing: 'il suo valore viene <strong>tolto</strong> dal bonus',
+    landing: 'perdi <strong>metà</strong> del suo valore, arrotondata per difetto (7 → −3)',
     triple: 'il doppio: <strong>20 punti</strong>',
     jolly: 'completa il 10 con qualunque numero (6 + ★ = 10)',
     target: null,
@@ -64,12 +64,27 @@ const TEXTS: Record<VariantId, Texts> = {
     pick: 'due o tre numeri',
     goal: 'che moltiplicati fanno il <strong>bersaglio</strong> 🎯',
     reward: 'guadagni <strong>10 punti</strong>',
-    landing: 'perdi <strong>3 punti</strong>',
+    landing: 'perdi <strong>metà</strong> del suo valore, arrotondata per difetto, ma <strong>al massimo 3 punti</strong>',
     triple: 'il doppio: <strong>20 punti</strong>',
     jolly: 'vale il fattore che manca (bersaglio 24: 6 × ★ → ★ = 4)',
     target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano le tabelline più difficili.',
     example: 'Bersaglio 24: 3 × 8 → +10 · 2 × 3 × 4 → +20 · 4 × 5 = 20 ❌',
     hint: 'Tocca due o tre numeri che moltiplicati fanno il bersaglio',
+    groups: 'bersagli',
+  },
+  subtraction: {
+    title: 'Sottrazione bersaglio',
+    symbol: '−',
+    range: 'da <strong>1</strong> a <strong>30</strong>',
+    pick: 'due o tre numeri',
+    goal: 'che sottratti fanno il <strong>bersaglio</strong> 🎯 (il più grande meno gli altri)',
+    reward: 'guadagni <strong>10 punti</strong>',
+    landing: 'perdi <strong>metà</strong> del suo valore, arrotondata per difetto, ma <strong>al massimo 3 punti</strong>',
+    triple: 'il doppio: <strong>20 punti</strong>',
+    jolly: 'è il numero che manca (bersaglio 6: 13 − ★ → ★ = 7)',
+    target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano bersagli più grandi.',
+    example: 'Bersaglio 6: 13 − 7 → +10 · 20 − 9 − 5 → +20 · 13 − 8 = 5 ❌',
+    hint: 'Tocca due o tre numeri: il più grande meno gli altri deve fare il bersaglio',
     groups: 'bersagli',
   },
   division: {
@@ -79,7 +94,7 @@ const TEXTS: Record<VariantId, Texts> = {
     pick: 'due numeri',
     goal: 'che divisi fanno il <strong>bersaglio</strong> 🎯 (il più grande diviso il più piccolo)',
     reward: 'guadagni <strong>10 punti</strong>',
-    landing: 'perdi <strong>3 punti</strong>',
+    landing: 'perdi <strong>metà</strong> del suo valore, arrotondata per difetto, ma <strong>al massimo 3 punti</strong>',
     triple: null,
     jolly: 'fa da divisore o da dividendo (bersaglio 6: 42 : ★ → ★ = 7)',
     target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano divisioni più difficili.',
@@ -106,6 +121,8 @@ export class NumberRainComponent {
   protected readonly winBonus = computed<number | undefined>(() => VARIANTS[this.variant()].winBonus);
   protected readonly hasJolly = computed(() => VARIANTS[this.variant()].jollyChance > 0);
   protected readonly phase = signal<Phase>('intro');
+  /** Modalita' facile: piu' numeri utili. */
+  protected readonly easy = signal(false);
   protected readonly numbers = signal<FallingNumber[]>([]);
   protected readonly selectedIds = signal<number[]>([]);
   protected readonly selectedValues = signal<number[]>([]);
@@ -118,8 +135,8 @@ export class NumberRainComponent {
     if (this.selectionHasJolly() || labels.length < 2) {
       return { operation: labels.join(` ${variant.operator} `), result: null as string | null };
     }
-    // Nella divisione si scrive prima il numero piu' grande (42 : 7).
-    const values = variant.operator === ':' ? [...this.selectedValues()].sort((a, b) => b - a) : this.selectedValues();
+    // Nella divisione e nella sottrazione si scrive prima il numero piu' grande (42 : 7, 13 − 7).
+    const values = variant.operator === ':' || variant.operator === '−' ? [...this.selectedValues()].sort((a, b) => b - a) : this.selectedValues();
     const result = variant.combine(values);
     return { operation: values.join(` ${variant.operator} `), result: result === null ? '?' : String(result) };
   });
@@ -147,7 +164,7 @@ export class NumberRainComponent {
 
   protected start(): void {
     this.stopLoop();
-    this.game = new NumberRainGame(VARIANTS[this.variant()]);
+    this.game = new NumberRainGame(VARIANTS[this.variant()], Math.random, { easy: this.easy() });
     this.popups.set([]);
     this.shakingIds.set([]);
     this.bestBonus.set(this.game.bonus);

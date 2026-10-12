@@ -5,6 +5,7 @@ const rain = VARIANTS.rain;
 const friends = VARIANTS.friends;
 const product = VARIANTS.product;
 const division = VARIANTS.division;
+const subtraction = VARIANTS.subtraction;
 
 function gameWith(variant: GameVariant, ...values: number[]): NumberRainGame {
   const game = new NumberRainGame(variant, () => 0);
@@ -249,13 +250,14 @@ describe('NumberRainGame', () => {
     const events = game.tick(0.1);
 
     expect(events).toContainEqual(expect.objectContaining({ type: 'landed', value: 42 }));
-    expect(game.bonus).toBe(rain.startBonus - 42);
+    expect(events).toContainEqual(expect.objectContaining({ penalty: 21 }));
+    expect(game.bonus).toBe(rain.startBonus - 21);
     expect(game.numbers.some((item) => item.value === 42)).toBe(false);
   });
 
   it('ends the game when the bonus reaches zero', () => {
     const game = gameWith(rain, 99);
-    game.bonus = 99;
+    game.bonus = 49;
     game.numbers[0].y = 0.999;
 
     game.tick(0.1);
@@ -393,5 +395,106 @@ describe('Divisione bersaglio', () => {
     game.target = 6;
     game.tick(0.016);
     expect(game.numbers[0].value).toBe(2);
+  });
+});
+
+describe('Sottrazione bersaglio', () => {
+  it('hits the target with two numbers in any order', () => {
+    const game = targetGameWith(subtraction, 6, 7, 13);
+    game.select(101);
+    expect(game.select(102)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.target).not.toBe(6);
+  });
+
+  it('gives 20 points when the biggest number minus two others makes the target', () => {
+    const game = targetGameWith(subtraction, 10, 20, 7, 3);
+    game.select(101);
+    expect(game.select(102)).toBeNull();
+    expect(game.select(103)).toEqual(expect.objectContaining({ type: 'match', sum: 20 }));
+  });
+
+  it('rejects a difference that is already smaller than the target', () => {
+    const game = targetGameWith(subtraction, 6, 13, 8);
+    game.select(101);
+    expect(game.select(102)).toEqual({ type: 'mismatch', ids: [101, 102] });
+  });
+
+  it('subtracts the smaller numbers from the biggest', () => {
+    expect(subtraction.combine([7, 13])).toBe(6);
+    expect(subtraction.combine([3, 20, 7])).toBe(10);
+  });
+
+  it('uses the jolly as the missing number', () => {
+    expect(subtraction.completeWithJolly([13], 6)).toBe(6);
+    expect(subtraction.completeWithJolly([20, 7], 10)).toBe(10);
+    expect(subtraction.completeWithJolly([13, 8], 6)).toBeNull();
+  });
+
+  it('only drops numbers from 1 to 30', () => {
+    const values = spawnedValues(subtraction, 300);
+    expect(values.every((value) => value >= 1 && value <= 30)).toBe(true);
+  });
+
+  it('drops half of a correct subtraction for the current target', () => {
+    // 0.1: niente jolly, numero utile, sottraendo 3 e scelta del sottraendo (0.1 < 0.5).
+    const game = new NumberRainGame(subtraction, () => 0.1);
+    game.target = 6;
+    game.tick(0.016);
+    expect(game.numbers[0].value).toBe(3);
+  });
+});
+
+describe('Velocita di caduta', () => {
+  it('is slower in the target games', () => {
+    const rainSpeed = new NumberRainGame(rain).fallSpeed;
+    for (const variant of [product, division, subtraction]) {
+      expect(new NumberRainGame(variant).fallSpeed).toBeCloseTo(rainSpeed * 0.55);
+    }
+    expect(new NumberRainGame(friends).fallSpeed).toBe(rainSpeed);
+  });
+
+  it('takes about 18 seconds to fall at the first level, about 33 in the target games', () => {
+    expect(1 / new NumberRainGame(rain).fallSpeed).toBeCloseTo(18.2, 0);
+    expect(1 / new NumberRainGame(product).fallSpeed).toBeCloseTo(33.1, 0);
+  });
+});
+
+describe('Numeri utili', () => {
+  it('drops more useful numbers in easy mode', () => {
+    expect(new NumberRainGame(product).usefulChance).toBe(product.complementChance);
+    expect(new NumberRainGame(product, Math.random, { easy: true }).usefulChance).toBeCloseTo(product.complementChance + 0.3);
+    expect(new NumberRainGame(division, Math.random, { easy: true }).usefulChance).toBeLessThanOrEqual(0.9);
+  });
+
+  it('helps also in Amici del 10 when easy mode is on', () => {
+    expect(new NumberRainGame(friends).usefulChance).toBe(0);
+    expect(new NumberRainGame(friends, Math.random, { easy: true }).usefulChance).toBeGreaterThan(0);
+  });
+
+  it('can drop the exact partner of a number already in the field', () => {
+    // 0.1: niente jolly, numero utile e compagno di un numero in campo.
+    const game = new NumberRainGame(product, () => 0.1);
+    game.target = 24;
+    game.numbers = [{ id: 101, value: 3, lane: 0, y: 0.9 }];
+    game.tick(0.016);
+
+    const spawned = game.numbers.find((item) => item.id !== 101)!;
+    expect(spawned.value).toBe(8);
+  });
+});
+
+describe('Penalita quando un numero tocca terra', () => {
+  it('takes away half of the number, rounded down', () => {
+    expect(rain.penalty(42)).toBe(21);
+    expect(rain.penalty(37)).toBe(18);
+    expect(friends.penalty(7)).toBe(3);
+    expect(friends.penalty(1)).toBe(0);
+  });
+
+  it('never takes away more than 3 points in the target games', () => {
+    expect(product.penalty(4)).toBe(2);
+    expect(product.penalty(9)).toBe(3);
+    expect(division.penalty(100)).toBe(3);
+    expect(subtraction.penalty(1)).toBe(0);
   });
 });

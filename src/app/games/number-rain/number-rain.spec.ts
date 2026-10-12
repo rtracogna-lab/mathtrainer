@@ -2,7 +2,7 @@ import { provideRouter } from '@angular/router';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NumberRainComponent } from './number-rain';
-import { NumberRainGame } from './number-rain.game';
+import { NumberRainGame, VARIANTS } from './number-rain.game';
 
 describe('NumberRainComponent', () => {
   let fixture: ComponentFixture<NumberRainComponent>;
@@ -64,7 +64,7 @@ describe('NumberRainComponent', () => {
 
   it('shows the game over screen when the bonus runs out', () => {
     const game = startWith(99);
-    game.bonus = 99;
+    game.bonus = 49;
     game.numbers[0].y = 0.999;
     fixture.componentInstance['advance'](0.1);
     fixture.detectChanges();
@@ -142,7 +142,7 @@ describe('NumberRainComponent', () => {
   it('writes divisions with the bigger number first', () => {
     fixture.componentRef.setInput('variant', 'division');
     fixture.detectChanges();
-    expect(fixture.nativeElement.querySelector('.rules').textContent).toContain('3 punti');
+    expect(fixture.nativeElement.querySelector('.rules').textContent).toContain('al massimo 3 punti');
 
     const game = startWith(7, 42);
     game.target = 6;
@@ -153,5 +153,35 @@ describe('NumberRainComponent', () => {
     tap(1);
     expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('60');
     expect(fixture.nativeElement.querySelector('.rain-popup').textContent).toContain('+10');
+  });
+
+  it('plays Sottrazione bersaglio writing the bigger number first', () => {
+    fixture.componentRef.setInput('variant', 'subtraction');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Sottrazione bersaglio');
+
+    const game = startWith(7, 20, 3);
+    game.target = 10;
+    fixture.componentInstance['sync']();
+    fixture.detectChanges();
+
+    tap(0);
+    tap(1);
+    expect(fixture.nativeElement.querySelector('.selection-sum').textContent).toContain('20 − 7 = 13');
+    tap(2);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('70');
+  });
+
+  it('starts in easy mode when the player ticks the option', () => {
+    fixture.componentRef.setInput('variant', 'product');
+    fixture.detectChanges();
+    const checkbox = fixture.nativeElement.querySelector('.easy-toggle input') as HTMLInputElement;
+    checkbox.checked = true;
+    checkbox.dispatchEvent(new Event('change'));
+    fixture.detectChanges();
+
+    const game = startWith(3);
+    expect(game.usefulChance).toBeCloseTo(VARIANTS.product.complementChance + 0.3);
+    expect(fixture.nativeElement.querySelector('.game-info').textContent).toContain('Facile');
   });
 });
