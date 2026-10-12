@@ -22,6 +22,6 @@ export class HomeComponent {
     { name: 'Sottrazione', description: 'Scopri quanto rimane', symbol: '-', route: '/sottrazione' },
     { name: 'Moltiplicazione', description: 'Raggruppa e calcola', symbol: '·', route: '/moltiplicazione' },
     { name: 'Divisione', description: 'Distribuisci in parti uguali', symbol: '÷', route: '/divisione' },
-    { name: 'Giochi', description: 'Pioggia di numeri e Amici del 10', symbol: '🎮', route: '/giochi' },
+    { name: 'Giochi', description: 'Pioggia di numeri, Amici del 10, Prodotto e Divisione bersaglio', symbol: '🎮', route: '/giochi' },
   ];
 }

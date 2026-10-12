@@ -8,18 +8,39 @@ const SHAKE_MS = 400;
 type Phase = 'intro' | 'playing' | 'paused' | 'over' | 'won';
 type Popup = { id: number; text: string; lane: number; y: number; kind: 'gain' | 'loss' };
 
-const TEXTS: Record<VariantId, { title: string; symbol: string; range: string; pick: string; goal: string; example: string; hint: string; groups: string; triple: string; jolly: string }> = {
+type Texts = {
+  title: string;
+  symbol: string;
+  range: string;
+  pick: string;
+  goal: string;
+  reward: string;
+  landing: string;
+  /** Regola per i gruppi di tre carte (null se il gioco accetta solo coppie). */
+  triple: string | null;
+  jolly: string;
+  /** Spiegazione del bersaglio (solo per i giochi che ne hanno uno). */
+  target: string | null;
+  example: string;
+  hint: string;
+  groups: string;
+};
+
+const TEXTS: Record<VariantId, Texts> = {
   rain: {
     title: 'Pioggia di numeri',
     symbol: '10',
     range: 'da <strong>1</strong> a <strong>99</strong> (mai multipli di 10)',
     pick: 'due o tre numeri',
     goal: 'la cui somma è un multiplo di 10 (10, 20, 30…)',
+    reward: 'la somma si aggiunge al bonus',
+    landing: 'il suo valore viene <strong>tolto</strong> dal bonus',
+    triple: 'il <strong>doppio</strong> della somma',
+    jolly: 'porta la somma al multiplo di 10 successivo (37 + ★ = 40)',
+    target: null,
     example: 'Esempio: 37 + 23 = 60 → +60 · 31 + 12 + 17 = 60 → +120 · 37 + 25 = 62 ❌',
     hint: 'Tocca due o tre numeri che insieme fanno 10, 20, 30…',
     groups: 'gruppi',
-    triple: 'il <strong>doppio</strong> della somma',
-    jolly: 'porta la somma al multiplo di 10 successivo (37 + ★ = 40)',
   },
   friends: {
     title: 'Amici del 10',
@@ -27,11 +48,44 @@ const TEXTS: Record<VariantId, { title: string; symbol: string; range: string; p
     range: 'da <strong>1</strong> a <strong>9</strong>',
     pick: 'due o tre numeri',
     goal: 'che insieme fanno esattamente <strong>10</strong>',
+    reward: 'la somma si aggiunge al bonus',
+    landing: 'il suo valore viene <strong>tolto</strong> dal bonus',
+    triple: 'il doppio: <strong>20 punti</strong>',
+    jolly: 'completa il 10 con qualunque numero (6 + ★ = 10)',
+    target: null,
     example: 'Esempio: 3 + 7 = 10 → +10 · 2 + 3 + 5 = 10 → +20 · 4 + 5 = 9 ❌',
     hint: 'Tocca due o tre numeri che insieme fanno 10',
     groups: 'gruppi',
+  },
+  product: {
+    title: 'Prodotto bersaglio',
+    symbol: '×',
+    range: 'da <strong>2</strong> a <strong>10</strong>',
+    pick: 'due o tre numeri',
+    goal: 'che moltiplicati fanno il <strong>bersaglio</strong> 🎯',
+    reward: 'guadagni <strong>10 punti</strong>',
+    landing: 'perdi <strong>3 punti</strong>',
     triple: 'il doppio: <strong>20 punti</strong>',
-    jolly: 'completa il 10 con qualunque numero (6 + ★ = 10)',
+    jolly: 'vale il fattore che manca (bersaglio 24: 6 × ★ → ★ = 4)',
+    target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano le tabelline più difficili.',
+    example: 'Bersaglio 24: 3 × 8 → +10 · 2 × 3 × 4 → +20 · 4 × 5 = 20 ❌',
+    hint: 'Tocca due o tre numeri che moltiplicati fanno il bersaglio',
+    groups: 'bersagli',
+  },
+  division: {
+    title: 'Divisione bersaglio',
+    symbol: ':',
+    range: 'da <strong>2</strong> a <strong>100</strong>',
+    pick: 'due numeri',
+    goal: 'che divisi fanno il <strong>bersaglio</strong> 🎯 (il più grande diviso il più piccolo)',
+    reward: 'guadagni <strong>10 punti</strong>',
+    landing: 'perdi <strong>3 punti</strong>',
+    triple: null,
+    jolly: 'fa da divisore o da dividendo (bersaglio 6: 42 : ★ → ★ = 7)',
+    target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano divisioni più difficili.',
+    example: 'Bersaglio 6: 42 : 7 → +10 (puoi toccarli in qualunque ordine) · 42 : 6 = 7 ❌',
+    hint: 'Tocca un dividendo e un divisore che fanno il bersaglio',
+    groups: 'bersagli',
   },
 };
 
@@ -56,8 +110,20 @@ export class NumberRainComponent {
   protected readonly selectedIds = signal<number[]>([]);
   protected readonly selectedValues = signal<number[]>([]);
   protected readonly selectedLabels = signal<string[]>([]);
-  protected readonly selectedSum = computed(() => this.selectedValues().reduce((total, value) => total + value, 0));
   protected readonly selectionHasJolly = computed(() => this.selectedLabels().length > this.selectedValues().length);
+  /** Selezione scritta come operazione, es. "3 × 8 = 24" o "42 : 7 = 6". */
+  protected readonly selectionText = computed(() => {
+    const variant = VARIANTS[this.variant()];
+    const labels = this.selectedLabels();
+    if (this.selectionHasJolly() || labels.length < 2) {
+      return { operation: labels.join(` ${variant.operator} `), result: null as string | null };
+    }
+    // Nella divisione si scrive prima il numero piu' grande (42 : 7).
+    const values = variant.operator === ':' ? [...this.selectedValues()].sort((a, b) => b - a) : this.selectedValues();
+    const result = variant.combine(values);
+    return { operation: values.join(` ${variant.operator} `), result: result === null ? '?' : String(result) };
+  });
+  protected readonly target = signal<number | null>(null);
   protected readonly bonus = signal(0);
   protected readonly bestBonus = signal(0);
   protected readonly pairs = signal(0);
@@ -140,10 +206,10 @@ export class NumberRainComponent {
     if (event.type === 'match') {
       this.addPopup(`+${event.sum}`, event.lane, event.y, 'gain');
     } else if (event.type === 'landed') {
-      if (event.value === 0) {
+      if (event.penalty === 0) {
         return;
       }
-      this.addPopup(`-${event.value}`, event.lane, 1, 'loss');
+      this.addPopup(`-${event.penalty}`, event.lane, 1, 'loss');
     } else {
       this.shakingIds.set(event.ids);
       this.later(() => this.shakingIds.set([]), SHAKE_MS);
@@ -170,6 +236,7 @@ export class NumberRainComponent {
     this.selectedValues.set(this.game.selectedValues);
     this.selectedLabels.set(this.game.selectedNumbers.map((item) => (item.jolly ? '★' : String(item.value))));
     this.bonus.set(this.game.bonus);
+    this.target.set(this.game.target);
     this.bestBonus.update((best) => Math.max(best, this.game.bonus));
     this.pairs.set(this.game.pairs);
     this.seconds.set(Math.floor(this.game.elapsed));

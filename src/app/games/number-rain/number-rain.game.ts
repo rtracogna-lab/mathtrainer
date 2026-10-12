@@ -12,7 +12,9 @@ export type FallingNumber = { id: number; value: number; lane: number; y: number
 export type GameEvent =
   | { type: 'match'; ids: number[]; sum: number; lane: number; y: number }
   | { type: 'mismatch'; ids: number[] }
-  | { type: 'landed'; id: number; value: number; lane: number };
+  | { type: 'landed'; id: number; value: number; penalty: number; lane: number };
+
+type Random = () => number;
 
 export type GameVariant = {
   /** Valori che possono cadere. */
@@ -20,13 +22,17 @@ export type GameVariant = {
   startBonus: number;
   /** Quanti numeri si possono selezionare al massimo per formare un gruppo. */
   maxPicks: number;
-  /** I numeri selezionati formano un gruppo valido. */
-  isMatch: (values: number[]) => boolean;
+  /** Simbolo dell'operazione, usato per mostrare la selezione (es. 3 × 8). */
+  operator: '+' | '×' | ':';
+  /** Risultato dell'operazione sui numeri selezionati, o null se non e' un numero intero. */
+  combine: (values: number[]) => number | null;
+  /** I numeri selezionati formano un gruppo valido (target: bersaglio corrente, se il gioco ne ha uno). */
+  isMatch: (values: number[], target?: number | null) => boolean;
   /** Ha senso aggiungere un altro numero alla selezione (che ancora non e' valida). */
-  canExtend: (values: number[]) => boolean;
+  canExtend: (values: number[], target?: number | null) => boolean;
   /**
-   * Probabilita' che un nuovo numero formi una coppia valida con uno gia' in campo:
-   * evita che il campo si riempia di numeri impossibili da abbinare.
+   * Probabilita' che un nuovo numero sia "utile": forma un gruppo valido con uno gia' in campo
+   * oppure, nei giochi con bersaglio, serve per colpire il bersaglio corrente.
    */
   complementChance: number;
   /** Probabilita' che il nuovo elemento sia un jolly (0 = nessun jolly). */
@@ -35,18 +41,59 @@ export type GameVariant = {
    * Totale del gruppo quando i numeri selezionati sono completati da un jolly,
    * oppure null se il jolly non puo' completarli.
    */
-  completeWithJolly: (values: number[]) => number | null;
+  completeWithJolly: (values: number[], target?: number | null) => number | null;
   /** Punti guadagnati con un gruppo valido, dato il suo totale e quante carte contiene. */
   points: (total: number, cards: number) => number;
+  /** Punti persi quando un numero tocca terra. */
+  penalty: (value: number) => number;
   /** Bonus da raggiungere per vincere (assente = si gioca finche' il bonus non finisce). */
   winBonus?: number;
+  /** Giochi con bersaglio: sceglie il prossimo bersaglio, diverso dal precedente. */
+  nextTarget?: (random: Random, level: number, previous: number | null) => number;
+  /** Giochi con bersaglio: un numero che serve per colpire il bersaglio indicato. */
+  usefulValue?: (target: number, random: Random, level: number) => number;
 };
 
 const sumOf = (values: number[]) => values.reduce((total, value) => total + value, 0);
+const productOf = (values: number[]) => values.reduce((total, value) => total * value, 1);
 
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, index) => from + index);
 
-export type VariantId = 'rain' | 'friends';
+function pickWith<T>(random: Random, items: T[]): T {
+  return items[Math.min(items.length - 1, Math.floor(random() * items.length))];
+}
+
+function pickTarget(random: Random, candidates: number[], previous: number | null): number {
+  const others = candidates.filter((value) => value !== previous);
+  return pickWith(random, others.length > 0 ? others : candidates);
+}
+
+/** Massimo fattore usato per prodotti e divisioni: al primo livello solo tabelline facili. */
+const maxFactor = (level: number) => (level <= 1 ? 6 : 10);
+
+/** Prodotti a × b con fattori da 2 a max (es. 12, 24, 56...). */
+function products(max: number): number[] {
+  const values = new Set<number>();
+  for (const first of range(2, max)) {
+    for (const second of range(first, max)) {
+      values.add(first * second);
+    }
+  }
+  return [...values].sort((a, b) => a - b);
+}
+
+const FACTORS = range(2, 10);
+
+/** Risultato della divisione del numero piu' grande per il piu' piccolo, se esatta. */
+function quotient(values: number[]): number | null {
+  if (values.length !== 2) {
+    return null;
+  }
+  const [divisor, dividend] = [...values].sort((a, b) => a - b);
+  return dividend % divisor === 0 ? dividend / divisor : null;
+}
+
+export type VariantId = 'rain' | 'friends' | 'product' | 'division';
 
 export const VARIANTS: Record<VariantId, GameVariant> = {
   // Niente multipli di 10: il gruppo si forma solo combinando le unita' (es. 37 + 23).
@@ -54,6 +101,8 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     values: range(1, 99).filter((value) => value % 10 !== 0),
     startBonus: 100,
     maxPicks: 3,
+    operator: '+',
+    combine: sumOf,
     isMatch: (values) => values.length >= 2 && sumOf(values) % 10 === 0,
     // Con due numeri che non fanno un multiplo di 10, un terzo puo' sempre sistemare la somma.
     canExtend: () => true,
@@ -63,6 +112,7 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     completeWithJolly: (values) => Math.max(10, Math.ceil(sumOf(values) / 10) * 10),
     // Con tre carte (jolly compreso) la somma vale doppio.
     points: (total, cards) => (cards > 2 ? total * 2 : total),
+    penalty: (value) => value,
     winBonus: 300,
   },
   // Amici del 10: due o tre numeri da 1 a 9, generati a caso, che insieme fanno esattamente 10.
@@ -70,6 +120,8 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     values: range(1, 9),
     startBonus: 50,
     maxPicks: 3,
+    operator: '+',
+    combine: sumOf,
     isMatch: (values) => values.length >= 2 && sumOf(values) === 10,
     canExtend: (values) => sumOf(values) < 10,
     complementChance: 0,
@@ -78,7 +130,67 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     completeWithJolly: (values) => (sumOf(values) < 10 ? 10 : null),
     // Fare 10 con piu' di due carte (jolly compreso) vale doppio.
     points: (total, cards) => (cards > 2 ? total * 2 : total),
+    penalty: (value) => value,
     winBonus: 100,
+  },
+  // Prodotto bersaglio: due o tre fattori da 2 a 10 il cui prodotto e' il bersaglio (3 × 8 = 24, 2 × 3 × 4 = 24).
+  product: {
+    values: FACTORS,
+    startBonus: 50,
+    maxPicks: 3,
+    operator: '×',
+    combine: productOf,
+    isMatch: (values, target) => values.length >= 2 && productOf(values) === target,
+    // Un terzo fattore ha senso solo se il prodotto parziale divide ancora il bersaglio.
+    canExtend: (values, target) => target != null && productOf(values) < target && target % productOf(values) === 0,
+    complementChance: 0.5,
+    jollyChance: 0.08,
+    // Il jolly vale il fattore mancante, se e' un numero da 2 a 10 (6 × jolly = 24: il jolly vale 4).
+    completeWithJolly: (values, target) => {
+      const missing = target == null ? 0 : target / productOf(values);
+      return target != null && Number.isInteger(missing) && missing >= 2 && missing <= 10 ? target : null;
+    },
+    points: (_total, cards) => (cards > 2 ? 20 : 10),
+    penalty: () => 3,
+    winBonus: 100,
+    nextTarget: (random, level, previous) => pickTarget(random, products(maxFactor(level)), previous),
+    // Un fattore del bersaglio che ha un "compagno" tra 2 e 10 (per 24: 3, 4, 6 o 8).
+    usefulValue: (target, random) =>
+      pickWith(random, FACTORS.filter((factor) => target % factor === 0 && FACTORS.includes(target / factor))),
+  },
+  // Divisione bersaglio: un dividendo e un divisore il cui quoziente e' il bersaglio (42 : 7 = 6).
+  division: {
+    values: [...new Set([...FACTORS, ...products(10)])].sort((a, b) => a - b),
+    startBonus: 50,
+    maxPicks: 2,
+    operator: ':',
+    combine: quotient,
+    isMatch: (values, target) => quotient(values) === target,
+    canExtend: () => false,
+    complementChance: 0.6,
+    jollyChance: 0.08,
+    // Il jolly fa da divisore (42 : jolly = 6) o da dividendo (jolly : 7 = 6), se il risultato e' possibile.
+    completeWithJolly: (values, target) => {
+      if (target == null || values.length > 1) {
+        return null;
+      }
+      if (values.length === 0) {
+        return target;
+      }
+      const [value] = values;
+      const asDividend = value % target === 0 && value / target >= 2;
+      const asDivisor = value <= 10 && value * target <= 100;
+      return asDividend || asDivisor ? target : null;
+    },
+    points: () => 10,
+    penalty: () => 3,
+    winBonus: 100,
+    nextTarget: (random, level, previous) => pickTarget(random, range(2, maxFactor(level) <= 6 ? 5 : 10), previous),
+    // Meta' di una divisione giusta: il divisore (7) o il dividendo (42) per il bersaglio 6.
+    usefulValue: (target, random, level) => {
+      const divisor = pickWith(random, range(2, maxFactor(level)));
+      return random() < 0.5 ? divisor : divisor * target;
+    },
   },
 };
 
@@ -90,15 +202,18 @@ export class NumberRainGame {
   selectedIds: number[] = [];
   isOver = false;
   isWon = false;
+  /** Bersaglio corrente, solo per i giochi che ne hanno uno. */
+  target: number | null;
 
   private nextId = 1;
   private spawnTimer = 0;
 
   constructor(
     private readonly variant: GameVariant = VARIANTS.rain,
-    private readonly random: () => number = Math.random,
+    private readonly random: Random = Math.random,
   ) {
     this.bonus = variant.startBonus;
+    this.target = variant.nextTarget?.(random, 1, null) ?? null;
   }
 
   get level(): number {
@@ -126,9 +241,10 @@ export class NumberRainGame {
       number.y += this.fallSpeed * step;
     }
     for (const number of this.numbers.filter((item) => item.y >= 1)) {
+      const penalty = number.jolly ? 0 : this.variant.penalty(number.value);
       this.remove(number.id);
-      this.bonus -= number.value;
-      events.push({ type: 'landed', id: number.id, value: number.value, lane: number.lane });
+      this.bonus -= penalty;
+      events.push({ type: 'landed', id: number.id, value: number.value, penalty, lane: number.lane });
     }
     if (this.bonus <= 0) {
       this.bonus = 0;
@@ -170,19 +286,26 @@ export class NumberRainGame {
     if (ids.length < 2) {
       return null;
     }
-    const total = hasJolly ? this.variant.completeWithJolly(values) : this.variant.isMatch(values) ? sumOf(values) : null;
+    const total = hasJolly
+      ? this.variant.completeWithJolly(values, this.target)
+      : this.variant.isMatch(values, this.target)
+        ? this.variant.combine(values)
+        : null;
     if (total !== null) {
       const points = this.variant.points(total, ids.length);
       ids.forEach((selected) => this.remove(selected));
       this.bonus += points;
       this.pairs += 1;
+      if (this.variant.nextTarget !== undefined) {
+        this.target = this.variant.nextTarget(this.random, this.level, this.target);
+      }
       if (this.variant.winBonus !== undefined && this.bonus >= this.variant.winBonus) {
         this.isWon = true;
         this.isOver = true;
       }
       return { type: 'match', ids, sum: points, lane: number.lane, y: number.y };
     }
-    if (!hasJolly && ids.length < this.variant.maxPicks && this.variant.canExtend(values)) {
+    if (!hasJolly && ids.length < this.variant.maxPicks && this.variant.canExtend(values, this.target)) {
       return null;
     }
     this.selectedIds = [];
@@ -206,16 +329,21 @@ export class NumberRainGame {
   }
 
   private nextValue(): number {
+    if (this.variant.usefulValue !== undefined && this.target !== null) {
+      return this.random() < this.variant.complementChance
+        ? this.variant.usefulValue(this.target, this.random, this.level)
+        : this.pick(this.variant.values);
+    }
     const partners = this.numbers.filter((item) => !item.jolly);
     if (partners.length > 0 && this.random() < this.variant.complementChance) {
       const partner = this.pick(partners).value;
-      return this.pick(this.variant.values.filter((value) => this.variant.isMatch([partner, value])));
+      return this.pick(this.variant.values.filter((value) => this.variant.isMatch([partner, value], this.target)));
     }
     return this.pick(this.variant.values);
   }
 
   private pick<T>(items: T[]): T {
-    return items[Math.min(items.length - 1, Math.floor(this.random() * items.length))];
+    return pickWith(this.random, items);
   }
 
   private remove(id: number): void {

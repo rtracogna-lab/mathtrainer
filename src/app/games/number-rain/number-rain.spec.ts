@@ -122,4 +122,36 @@ describe('NumberRainComponent', () => {
     tap(1);
     expect(fixture.nativeElement.querySelector('.selection-sum').textContent).toContain('★');
   });
+
+  it('shows the target and the product of the selection', () => {
+    fixture.componentRef.setInput('variant', 'product');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Prodotto bersaglio');
+
+    const game = startWith(3, 8, 2);
+    game.target = 24;
+    fixture.componentInstance['sync']();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.game-target').textContent).toContain('24');
+
+    tap(0);
+    tap(2);
+    expect(fixture.nativeElement.querySelector('.selection-sum').textContent).toContain('3 × 2 = 6');
+  });
+
+  it('writes divisions with the bigger number first', () => {
+    fixture.componentRef.setInput('variant', 'division');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.rules').textContent).toContain('3 punti');
+
+    const game = startWith(7, 42);
+    game.target = 6;
+    fixture.componentInstance['sync']();
+    fixture.detectChanges();
+
+    tap(0);
+    tap(1);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('60');
+    expect(fixture.nativeElement.querySelector('.rain-popup').textContent).toContain('+10');
+  });
 });

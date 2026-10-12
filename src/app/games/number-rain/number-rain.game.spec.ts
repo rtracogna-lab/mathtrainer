@@ -3,10 +3,18 @@ import { GameVariant, LEVEL_SECONDS, NumberRainGame, VARIANTS } from './number-r
 
 const rain = VARIANTS.rain;
 const friends = VARIANTS.friends;
+const product = VARIANTS.product;
+const division = VARIANTS.division;
 
 function gameWith(variant: GameVariant, ...values: number[]): NumberRainGame {
   const game = new NumberRainGame(variant, () => 0);
   game.numbers = values.map((value, index) => ({ id: 101 + index, value, lane: index, y: 0.5 }));
+  return game;
+}
+
+function targetGameWith(variant: GameVariant, target: number, ...values: number[]): NumberRainGame {
+  const game = gameWith(variant, ...values);
+  game.target = target;
   return game;
 }
 
@@ -283,5 +291,107 @@ describe('NumberRainGame', () => {
 
     const spawned = game.numbers.find((item) => item.id !== 101)!;
     expect(rain.isMatch([37, spawned.value])).toBe(true);
+  });
+});
+
+describe('Prodotto bersaglio', () => {
+  it('starts with a target that is a product of two easy factors', () => {
+    const game = new NumberRainGame(product, () => 0.5);
+    expect(game.target).not.toBeNull();
+    const target = game.target!;
+    const factors = [2, 3, 4, 5, 6];
+    expect(factors.some((a) => factors.some((b) => a * b === target))).toBe(true);
+  });
+
+  it('hits the target with two factors and picks a new target', () => {
+    const game = targetGameWith(product, 24, 3, 8, 5);
+    game.select(101);
+    expect(game.select(102)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.bonus).toBe(product.startBonus + 10);
+    expect(game.target).not.toBe(24);
+  });
+
+  it('gives 20 points with three factors', () => {
+    const game = targetGameWith(product, 24, 2, 3, 4);
+    game.select(101);
+    expect(game.select(102)).toBeNull();
+    expect(game.select(103)).toEqual(expect.objectContaining({ type: 'match', sum: 20 }));
+  });
+
+  it('rejects factors whose product does not divide the target', () => {
+    const game = targetGameWith(product, 24, 4, 5);
+    game.select(101);
+    expect(game.select(102)).toEqual({ type: 'mismatch', ids: [101, 102] });
+  });
+
+  it('uses the jolly as the missing factor only when it is between 2 and 10', () => {
+    expect(product.completeWithJolly([6], 24)).toBe(24);
+    expect(product.completeWithJolly([2, 3], 24)).toBe(24);
+    expect(product.completeWithJolly([2], 24)).toBeNull();
+    expect(product.completeWithJolly([5], 24)).toBeNull();
+  });
+
+  it('only drops factors from 2 to 10', () => {
+    const values = spawnedValues(product, 300);
+    expect(values.every((value) => value >= 2 && value <= 10)).toBe(true);
+  });
+
+  it('often drops a factor of the current target', () => {
+    // 0.1: niente jolly (soglia 0.08) e numero utile (soglia 0.5).
+    const game = new NumberRainGame(product, () => 0.1);
+    game.target = 24;
+    game.tick(0.016);
+    expect(24 % game.numbers[0].value).toBe(0);
+  });
+
+  it('loses three points when a number reaches the ground', () => {
+    const game = targetGameWith(product, 24, 9);
+    game.numbers[0].y = 0.999;
+    const events = game.tick(0.1);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'landed', value: 9, penalty: 3 }));
+    expect(game.bonus).toBe(product.startBonus - 3);
+  });
+});
+
+describe('Divisione bersaglio', () => {
+  it('hits the target with a dividend and a divisor in any order', () => {
+    const game = targetGameWith(division, 6, 7, 42);
+    game.select(101);
+    expect(game.select(102)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.target).not.toBe(6);
+  });
+
+  it('rejects a division that gives another result', () => {
+    const game = targetGameWith(division, 6, 42, 6);
+    game.select(101);
+    expect(game.select(102)).toEqual({ type: 'mismatch', ids: [101, 102] });
+    expect(game.bonus).toBe(division.startBonus);
+  });
+
+  it('writes the division with the bigger number first', () => {
+    expect(division.combine([7, 42])).toBe(6);
+    expect(division.combine([5, 42])).toBeNull();
+  });
+
+  it('uses the jolly as divisor or dividend', () => {
+    expect(division.completeWithJolly([42], 6)).toBe(6);
+    expect(division.completeWithJolly([7], 6)).toBe(6);
+    expect(division.completeWithJolly([45], 6)).toBeNull();
+  });
+
+  it('starts with easy targets from 2 to 5', () => {
+    for (const seed of [0, 0.3, 0.6, 0.99]) {
+      const target = new NumberRainGame(division, () => seed).target!;
+      expect(target).toBeGreaterThanOrEqual(2);
+      expect(target).toBeLessThanOrEqual(5);
+    }
+  });
+
+  it('drops half of a correct division for the current target', () => {
+    // 0.1: niente jolly, numero utile, divisore 2 e scelta del divisore (0.1 < 0.5).
+    const game = new NumberRainGame(division, () => 0.1);
+    game.target = 6;
+    game.tick(0.016);
+    expect(game.numbers[0].value).toBe(2);
   });
 });

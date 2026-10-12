@@ -7,9 +7,14 @@
       <h2 id="rain-title">Come si gioca</h2>
       <ul class="rules">
         <li>Dall'alto cadono numeri <span [innerHTML]="texts().range"></span>.</li>
-        <li>Tocca <strong>{{ texts().pick }}</strong> <span [innerHTML]="texts().goal"></span>: spariscono e la somma si aggiunge al bonus.</li>
-        <li>Se un numero tocca terra, il suo valore viene <strong>tolto</strong> dal bonus.</li>
-        <li>Se ci riesci con <strong>tre</strong> carte guadagni <span [innerHTML]="texts().triple"></span>.</li>
+        <li>Tocca <strong>{{ texts().pick }}</strong> <span [innerHTML]="texts().goal"></span>: spariscono e <span [innerHTML]="texts().reward"></span>.</li>
+        @if (texts().target; as targetRule) {
+          <li>{{ targetRule }}</li>
+        }
+        <li>Se un numero tocca terra <span [innerHTML]="texts().landing"></span>.</li>
+        @if (texts().triple; as triple) {
+          <li>Se ci riesci con <strong>tre</strong> carte guadagni <span [innerHTML]="triple"></span>.</li>
+        }
         @if (hasJolly()) {
           <li>Ogni tanto cade un <strong class="jolly-text">★ jolly</strong>: <span [innerHTML]="texts().jolly"></span>. Se tocca terra non perdi punti.</li>
         }
@@ -49,6 +54,9 @@
         <button class="secondary-button pause-button" type="button" (click)="togglePause()">{{ phase() === 'paused' ? 'Riprendi' : 'Pausa' }}</button>
       </div>
 
+      @if (target() !== null) {
+        <p class="game-target" aria-live="polite">🎯 Bersaglio: <strong>{{ target() }}</strong></p>
+      }
       <div class="game-field" [style.--lanes]="lanes" aria-label="Campo di gioco">
         @for (number of numbers(); track number.id) {
           <button
@@ -76,10 +84,8 @@
         }
       </div>
       <p class="selection-sum" aria-live="polite">
-        @if (selectionHasJolly()) {
-          {{ selectedLabels().join(' + ') }}
-        } @else if (selectedValues().length > 0) {
-          {{ selectedValues().join(' + ') }} = <strong>{{ selectedSum() }}</strong>
+        @if (selectedLabels().length > 0) {
+          {{ selectionText().operation }}@if (selectionText().result; as result) { = <strong>{{ result }}</strong>}
         } @else {
           &nbsp;
         }

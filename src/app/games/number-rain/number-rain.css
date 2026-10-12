@@ -65,6 +65,20 @@
   font-size: 0.9rem;
 }
 
+.game-target {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem;
+  border-radius: 10px;
+  background: #e8ecf7;
+  color: #2b3a67;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.game-target strong {
+  font-size: 1.8rem;
+}
+
 .game-field {
   --tile-height: 2.75rem;
   position: relative;
