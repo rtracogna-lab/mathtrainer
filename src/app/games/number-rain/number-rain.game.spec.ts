@@ -6,6 +6,7 @@ const friends = VARIANTS.friends;
 const product = VARIANTS.product;
 const division = VARIANTS.division;
 const subtraction = VARIANTS.subtraction;
+const multiples = VARIANTS.multiples;
 
 function gameWith(variant: GameVariant, ...values: number[]): NumberRainGame {
   const game = new NumberRainGame(variant, () => 0);
@@ -574,5 +575,82 @@ describe('Modalita facile', () => {
     const easy = new NumberRainGame(product, () => 0.5, { easy: true });
     const hard = new NumberRainGame(product, () => 0.5);
     expect(easy.target).toBe(hard.target);
+  });
+});
+
+describe('Caccia ai multipli', () => {
+  it('gives 5 points for a multiple and removes it', () => {
+    const game = targetGameWith(multiples, 7, 14, 30);
+    expect(game.select(101)).toEqual(expect.objectContaining({ type: 'match', ids: [101], sum: 5 }));
+    expect(game.bonus).toBe(multiples.startBonus + 5);
+    expect(game.numbers.map((item) => item.value)).toEqual([30]);
+  });
+
+  it('takes away 5 points for a number that is not a multiple', () => {
+    const game = targetGameWith(multiples, 7, 30);
+    expect(game.select(101)).toEqual(expect.objectContaining({ type: 'mismatch', ids: [101], penalty: 5 }));
+    expect(game.bonus).toBe(multiples.startBonus - 5);
+    expect(game.numbers).toEqual([]);
+  });
+
+  it('ends the game when a wrong tap uses up the bonus', () => {
+    const game = targetGameWith(multiples, 7, 30);
+    game.bonus = 5;
+    game.select(101);
+    expect(game.isOver).toBe(true);
+    expect(game.isWon).toBe(false);
+  });
+
+  it('only loses points when a multiple reaches the ground', () => {
+    const game = targetGameWith(multiples, 7, 30, 35);
+    game.numbers.forEach((item) => (item.y = 0.999));
+    const events = game.tick(0.1);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'landed', value: 30, penalty: 0 }));
+    expect(events).toContainEqual(expect.objectContaining({ type: 'landed', value: 35, penalty: 3 }));
+    expect(game.bonus).toBe(multiples.startBonus - 3);
+  });
+
+  it('catches all the multiples in the field with the jolly', () => {
+    const game = targetGameWith(multiples, 7, 14, 30, 63);
+    game.numbers.push({ id: 200, value: 0, lane: 5, y: 0.5, jolly: true });
+    expect(game.select(200)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.numbers.map((item) => item.value)).toEqual([30]);
+    expect(game.pairs).toBe(2);
+  });
+
+  it('changes the table after 8 multiples', () => {
+    const game = targetGameWith(multiples, 7);
+    game.numbers = Array.from({ length: 8 }, (_, index) => ({ id: 300 + index, value: 7 * (index + 1), lane: 0, y: 0.5 }));
+    for (let index = 0; index < 7; index += 1) {
+      game.select(300 + index);
+      expect(game.target).toBe(7);
+    }
+    game.select(307);
+    expect(game.target).not.toBe(7);
+  });
+
+  it('drops multiples and intruders within ten times the table', () => {
+    const useful = new NumberRainGame(multiples, () => 0.1);
+    useful.target = 7;
+    useful.tick(0.016);
+    expect(useful.numbers[0].value % 7).toBe(0);
+
+    const intruder = new NumberRainGame(multiples, () => 0.7);
+    intruder.target = 7;
+    intruder.tick(0.016);
+    expect(intruder.numbers[0].value).toBeLessThanOrEqual(70);
+    expect(intruder.numbers[0].value % 7).not.toBe(0);
+  });
+
+  it('drops about two multiples out of three in easy mode', () => {
+    expect(new NumberRainGame(multiples).usefulChance).toBeCloseTo(0.5);
+    expect(new NumberRainGame(multiples, Math.random, { easy: true }).usefulChance).toBeCloseTo(0.65);
+  });
+
+  it('uses only easy tables in easy mode', () => {
+    for (const seed of [0, 0.3, 0.6, 0.99]) {
+      const target = new NumberRainGame(multiples, () => seed, { easy: true }).target!;
+      expect([2, 3, 4, 5, 10]).toContain(target);
+    }
   });
 });

@@ -173,7 +173,7 @@ describe('NumberRainComponent', () => {
   });
 
   it('lets the player choose between easy and hard in every game', () => {
-    for (const variant of ['rain', 'friends', 'product', 'division', 'subtraction']) {
+    for (const variant of ['rain', 'friends', 'product', 'division', 'subtraction', 'multiples']) {
       fixture.componentRef.setInput('variant', variant);
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('.difficulty .mode-switch__option').length).toBe(2);
@@ -194,5 +194,24 @@ describe('NumberRainComponent', () => {
     expect(game.usefulChance).toBeGreaterThan(VARIANTS.subtraction.complementChance);
     expect(game.target).toBeLessThanOrEqual(10);
     expect(fixture.nativeElement.querySelector('.game-info').textContent).toContain('Facile');
+  });
+
+  it('plays Caccia ai multipli with a single tap', () => {
+    fixture.componentRef.setInput('variant', 'multiples');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Caccia ai multipli');
+    expect(fixture.nativeElement.querySelector('.rules').textContent).toContain('perdi 5 punti');
+
+    const game = startWith(14, 30);
+    game.target = 7;
+    fixture.componentInstance['sync']();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.game-target').textContent).toContain('Multipli del 7');
+
+    tap(0);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('55');
+    tap(0);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('50');
+    expect(Array.from(fixture.nativeElement.querySelectorAll('.rain-popup')).map((popup) => (popup as HTMLElement).textContent)).toContain('-5');
   });
 });

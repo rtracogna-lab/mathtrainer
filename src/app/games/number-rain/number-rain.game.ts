@@ -30,7 +30,8 @@ export type FallingNumber = { id: number; value: number; lane: number; y: number
 
 export type GameEvent =
   | { type: 'match'; ids: number[]; sum: number; lane: number; y: number }
-  | { type: 'mismatch'; ids: number[] }
+  /** penalty/lane/y solo nei giochi a tocco singolo, dove un tocco sbagliato costa punti. */
+  | { type: 'mismatch'; ids: number[]; penalty?: number; lane?: number; y?: number }
   | { type: 'landed'; id: number; value: number; penalty: number; lane: number };
 
 type Random = () => number;
@@ -63,8 +64,8 @@ export type GameVariant = {
   completeWithJolly: (values: number[], target?: number | null) => number | null;
   /** Punti guadagnati con un gruppo valido, dato il suo totale e quante carte contiene. */
   points: (total: number, cards: number) => number;
-  /** Punti persi quando un numero tocca terra. */
-  penalty: (value: number) => number;
+  /** Punti persi quando un numero tocca terra (target: bersaglio corrente). */
+  penalty: (value: number, target?: number | null) => number;
   /** Bonus da raggiungere per vincere (assente = si gioca finche' il bonus non finisce). */
   winBonus?: number;
   /** Moltiplica la velocita' di caduta (es. 0.7 = numeri piu' lenti, per i giochi che fanno ragionare di piu'). */
@@ -75,6 +76,16 @@ export type GameVariant = {
   usefulValue?: (target: number, random: Random, level: number) => number;
   /** Modalita' facile: bersagli tra cui scegliere sempre, a ogni livello (assente = come in modalita' difficile). */
   easyTargets?: number[];
+  /** Gioco a tocco singolo: ogni numero toccato si valuta da solo (es. "e' un multiplo del 7?"). */
+  singleTap?: boolean;
+  /** Tocco singolo: punti persi toccando un numero sbagliato. */
+  wrongTapPenalty?: number;
+  /** Quanti centri servono prima che cambi il bersaglio (assente = cambia a ogni centro). */
+  hitsPerTarget?: number;
+  /** Modalita' facile: quanto aumenta la probabilita' di numeri utili (assente = EASY_EXTRA_CHANCE). */
+  easyExtraChance?: number;
+  /** Giochi con bersaglio: numero casuale da far cadere quando non serve un numero utile (assente = uno di values). */
+  randomValue?: (target: number, random: Random, level: number) => number;
 };
 
 /** Un numero che tocca terra toglie meta' del suo valore, arrotondata per difetto (7 → 3). */
@@ -130,7 +141,13 @@ function quotient(values: number[]): number | null {
   return dividend % divisor === 0 ? dividend / divisor : null;
 }
 
-export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction';
+export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction' | 'multiples';
+
+/** Caccia ai multipli: punti per ogni multiplo preso (con il jolly, per ciascun multiplo catturato). */
+const MULTIPLE_POINTS = 5;
+/** Caccia ai multipli: il bersaglio (la tabellina) cambia dopo questi multipli presi. */
+const MULTIPLES_PER_TABLE = 8;
+const isMultiple = (value: number, target?: number | null) => target != null && value % target === 0;
 
 export const VARIANTS: Record<VariantId, GameVariant> = {
   // Niente multipli di 10: il gruppo si forma solo combinando le unita' (es. 37 + 23).
@@ -263,6 +280,36 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
       return random() < 0.5 ? subtrahend : subtrahend + target;
     },
   },
+  // Caccia ai multipli: si tocca un numero alla volta, solo se e' un multiplo del bersaglio (7: 14, 35, 63...).
+  multiples: {
+    values: range(1, 100),
+    startBonus: 50,
+    maxPicks: 1,
+    operator: '×',
+    combine: (values) => values[0] ?? null,
+    isMatch: (values, target) => values.length === 1 && isMultiple(values[0], target),
+    canExtend: () => false,
+    complementChance: 0.5,
+    jollyChance: 0.06,
+    // Il jolly non completa un gruppo: cattura tutti i multipli in campo (vedi tap).
+    completeWithJolly: () => null,
+    points: (_total, cards) => MULTIPLE_POINTS * Math.max(1, cards),
+    // Solo i multipli lasciati cadere costano punti: gli intrusi vanno lasciati andare.
+    penalty: (value, target) => (isMultiple(value, target) ? MAX_TARGET_PENALTY : 0),
+    winBonus: 100,
+    speedFactor: 0.7,
+    singleTap: true,
+    wrongTapPenalty: 5,
+    hitsPerTarget: MULTIPLES_PER_TABLE,
+    // In facile i multipli sono circa 2 su 3: con l'aumento standard cadrebbero quasi solo multipli.
+    easyExtraChance: 0.15,
+    nextTarget: (random, _level, previous) => pickTarget(random, FACTORS, previous),
+    easyTargets: [2, 3, 4, 5, 10],
+    // Un multiplo della tabellina: da 1 × 7 a 10 × 7.
+    usefulValue: (target, random) => target * pickWith(random, range(1, 10)),
+    // Un numero qualunque fino a 10 volte la tabellina: quasi sempre un intruso.
+    randomValue: (target, random) => pickWith(random, range(1, target * 10)),
+  },
 };
 
 export class NumberRainGame {
@@ -278,6 +325,8 @@ export class NumberRainGame {
 
   private nextId = 1;
   private spawnTimer = 0;
+  /** Centri fatti con il bersaglio corrente (vedi hitsPerTarget). */
+  private targetHits = 0;
 
   /** Probabilita' che un nuovo numero sia utile (piu' alta in modalita' facile). */
   readonly usefulChance: number;
@@ -292,7 +341,7 @@ export class NumberRainGame {
     this.bonus = variant.startBonus;
     this.target = this.chooseTarget(null);
     this.usefulChance = this.easy
-      ? Math.min(MAX_USEFUL_CHANCE, variant.complementChance + EASY_EXTRA_CHANCE)
+      ? Math.min(MAX_USEFUL_CHANCE, variant.complementChance + (variant.easyExtraChance ?? EASY_EXTRA_CHANCE))
       : variant.complementChance;
   }
 
@@ -329,7 +378,7 @@ export class NumberRainGame {
       number.y += this.fallSpeed * step;
     }
     for (const number of this.numbers.filter((item) => item.y >= 1)) {
-      const penalty = number.jolly ? 0 : this.variant.penalty(number.value);
+      const penalty = number.jolly ? 0 : this.variant.penalty(number.value, this.target);
       this.remove(number.id);
       this.bonus -= penalty;
       events.push({ type: 'landed', id: number.id, value: number.value, penalty, lane: number.lane });
@@ -362,6 +411,9 @@ export class NumberRainGame {
     if (this.isOver || number === undefined) {
       return null;
     }
+    if (this.variant.singleTap) {
+      return this.tap(number);
+    }
     if (this.selectedIds.includes(id)) {
       this.selectedIds = this.selectedIds.filter((selected) => selected !== id);
       return null;
@@ -382,15 +434,7 @@ export class NumberRainGame {
     if (total !== null) {
       const points = this.variant.points(total, ids.length);
       ids.forEach((selected) => this.remove(selected));
-      this.bonus += points;
-      this.pairs += 1;
-      if (this.target !== null) {
-        this.target = this.chooseTarget(this.target);
-      }
-      if (this.variant.winBonus !== undefined && this.bonus >= this.variant.winBonus) {
-        this.isWon = true;
-        this.isOver = true;
-      }
+      this.addHits(points, 1);
       return { type: 'match', ids, sum: points, lane: number.lane, y: number.y };
     }
     if (!hasJolly && ids.length < this.variant.maxPicks && this.variant.canExtend(values, this.target)) {
@@ -398,6 +442,48 @@ export class NumberRainGame {
     }
     this.selectedIds = [];
     return { type: 'mismatch', ids };
+  }
+
+  /** Gioco a tocco singolo: un multiplo vale punti, un intruso li toglie, il jolly cattura tutti i multipli. */
+  private tap(number: FallingNumber): GameEvent {
+    if (number.jolly) {
+      const caught = this.numbers.filter((item) => !item.jolly && this.variant.isMatch([item.value], this.target));
+      const ids = [number.id, ...caught.map((item) => item.id)];
+      const points = this.variant.points(0, caught.length);
+      ids.forEach((id) => this.remove(id));
+      this.addHits(points, caught.length);
+      return { type: 'match', ids, sum: points, lane: number.lane, y: number.y };
+    }
+    this.remove(number.id);
+    if (this.variant.isMatch([number.value], this.target)) {
+      const points = this.variant.points(number.value, 1);
+      this.addHits(points, 1);
+      return { type: 'match', ids: [number.id], sum: points, lane: number.lane, y: number.y };
+    }
+    const penalty = this.variant.wrongTapPenalty ?? 0;
+    this.bonus -= penalty;
+    if (this.bonus <= 0) {
+      this.bonus = 0;
+      this.isOver = true;
+    }
+    return { type: 'mismatch', ids: [number.id], penalty, lane: number.lane, y: number.y };
+  }
+
+  /** Aggiunge i punti di un centro, cambia il bersaglio quando serve e controlla la vittoria. */
+  private addHits(points: number, hits: number): void {
+    this.bonus += points;
+    this.pairs += hits;
+    if (this.target !== null) {
+      this.targetHits += Math.max(1, hits);
+      if (this.targetHits >= (this.variant.hitsPerTarget ?? 1)) {
+        this.targetHits = 0;
+        this.target = this.chooseTarget(this.target);
+      }
+    }
+    if (this.variant.winBonus !== undefined && this.bonus >= this.variant.winBonus) {
+      this.isWon = true;
+      this.isOver = true;
+    }
   }
 
   private spawn(): boolean {
@@ -422,7 +508,11 @@ export class NumberRainGame {
   private nextValue(): Spawned {
     if (this.variant.usefulValue !== undefined && this.target !== null) {
       if (this.random() >= this.usefulChance) {
-        return { value: this.pick(this.variant.values) };
+        const random = this.variant.randomValue?.(this.target, this.random, this.level);
+        return { value: random ?? this.pick(this.variant.values) };
+      }
+      if (this.variant.singleTap) {
+        return { value: this.variant.usefulValue(this.target, this.random, this.level) };
       }
       // Meglio ancora del numero utile: il compagno esatto di un numero gia' in campo.
       const partners = this.partnersInField(this.target);

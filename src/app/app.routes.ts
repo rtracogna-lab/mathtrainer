@@ -20,6 +20,7 @@ export const routes: Routes = [
 	{ path: 'amici-del-10', component: NumberRainComponent, title: 'Amici del 10', data: { variant: 'friends' } },
 	{ path: 'prodotto-bersaglio', component: NumberRainComponent, title: 'Prodotto bersaglio', data: { variant: 'product' } },
 	{ path: 'sottrazione-bersaglio', component: NumberRainComponent, title: 'Sottrazione bersaglio', data: { variant: 'subtraction' } },
+	{ path: 'caccia-ai-multipli', component: NumberRainComponent, title: 'Caccia ai multipli', data: { variant: 'multiples' } },
 	{ path: 'divisione-bersaglio', component: NumberRainComponent, title: 'Divisione bersaglio', data: { variant: 'division' } },
 	{ path: '**', redirectTo: '' },
 ];

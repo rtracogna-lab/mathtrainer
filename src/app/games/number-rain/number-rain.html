@@ -12,6 +12,9 @@
           <li>{{ targetRule }}</li>
         }
         <li>Se un numero tocca terra <span [innerHTML]="texts().landing"></span>.</li>
+        @if (texts().wrong; as wrong) {
+          <li>{{ wrong }}</li>
+        }
         @if (texts().triple; as triple) {
           <li>Se ci riesci con <strong>tre</strong> carte guadagni <span [innerHTML]="triple"></span>.</li>
         }
@@ -68,7 +71,7 @@
       </div>
 
       @if (target() !== null) {
-        <p class="game-target" aria-live="polite">🎯 Bersaglio: <strong>{{ target() }}</strong></p>
+        <p class="game-target" aria-live="polite">🎯 {{ texts().targetLabel }} <strong>{{ target() }}</strong></p>
       }
       <div class="game-field" [style.--lanes]="lanes" aria-label="Campo di gioco">
         @for (number of numbers(); track number.id) {
