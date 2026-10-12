@@ -642,6 +642,11 @@ describe('Caccia ai multipli', () => {
     expect(intruder.numbers[0].value % 7).not.toBe(0);
   });
 
+  it('keeps easy Divisione bersaglio less predictable', () => {
+    expect(new NumberRainGame(division, Math.random, { easy: true }).usefulChance).toBeCloseTo(0.7);
+    expect(new NumberRainGame(division).usefulChance).toBeCloseTo(0.6);
+  });
+
   it('drops about two multiples out of three in easy mode', () => {
     expect(new NumberRainGame(multiples).usefulChance).toBeCloseTo(0.5);
     expect(new NumberRainGame(multiples, Math.random, { easy: true }).usefulChance).toBeCloseTo(0.65);

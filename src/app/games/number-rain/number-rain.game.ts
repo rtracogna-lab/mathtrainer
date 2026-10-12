@@ -241,6 +241,8 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     penalty: (value) => Math.min(MAX_TARGET_PENALTY, half(value)),
     winBonus: 100,
     speedFactor: 0.55,
+    // In facile i numeri utili salgono solo al 70%: con l'aumento standard (95%) quasi ogni numero colpirebbe il bersaglio.
+    easyExtraChance: 0.1,
     nextTarget: (random, level, previous) => pickTarget(random, range(2, maxFactor(level) <= 6 ? 5 : 10), previous),
     // Meta' di una divisione giusta: il divisore (7) o il dividendo (42) per il bersaglio 6.
     usefulValue: (target, random, level) => {
