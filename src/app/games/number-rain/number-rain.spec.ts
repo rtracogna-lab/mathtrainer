@@ -172,16 +172,27 @@ describe('NumberRainComponent', () => {
     expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('70');
   });
 
-  it('starts in easy mode when the player ticks the option', () => {
-    fixture.componentRef.setInput('variant', 'product');
+  it('lets the player choose between easy and hard in every game', () => {
+    for (const variant of ['rain', 'friends', 'product', 'division', 'subtraction']) {
+      fixture.componentRef.setInput('variant', variant);
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.difficulty .mode-switch__option').length).toBe(2);
+    }
+  });
+
+  it('starts in easy mode when the player chooses it', () => {
+    fixture.componentRef.setInput('variant', 'subtraction');
     fixture.detectChanges();
-    const checkbox = fixture.nativeElement.querySelector('.easy-toggle input') as HTMLInputElement;
-    checkbox.checked = true;
-    checkbox.dispatchEvent(new Event('change'));
+    expect(fixture.nativeElement.querySelector('.difficulty__description').textContent).toContain('Difficile');
+
+    const [easyButton] = fixture.nativeElement.querySelectorAll('.difficulty .mode-switch__option') as NodeListOf<HTMLButtonElement>;
+    easyButton.click();
     fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.difficulty__description').textContent).toContain('tra 1 e 10');
 
     const game = startWith(3);
-    expect(game.usefulChance).toBeCloseTo(VARIANTS.product.complementChance + 0.3);
+    expect(game.usefulChance).toBeGreaterThan(VARIANTS.subtraction.complementChance);
+    expect(game.target).toBeLessThanOrEqual(10);
     expect(fixture.nativeElement.querySelector('.game-info').textContent).toContain('Facile');
   });
 });

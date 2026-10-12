@@ -459,29 +459,6 @@ describe('Velocita di caduta', () => {
   });
 });
 
-describe('Numeri utili', () => {
-  it('drops more useful numbers in easy mode', () => {
-    expect(new NumberRainGame(product).usefulChance).toBe(product.complementChance);
-    expect(new NumberRainGame(product, Math.random, { easy: true }).usefulChance).toBeCloseTo(product.complementChance + 0.3);
-    expect(new NumberRainGame(division, Math.random, { easy: true }).usefulChance).toBeLessThanOrEqual(0.9);
-  });
-
-  it('helps also in Amici del 10 when easy mode is on', () => {
-    expect(new NumberRainGame(friends).usefulChance).toBe(0);
-    expect(new NumberRainGame(friends, Math.random, { easy: true }).usefulChance).toBeGreaterThan(0);
-  });
-
-  it('can drop the exact partner of a number already in the field', () => {
-    // 0.1: niente jolly, numero utile e compagno di un numero in campo.
-    const game = new NumberRainGame(product, () => 0.1);
-    game.target = 24;
-    game.numbers = [{ id: 101, value: 3, lane: 0, y: 0.9 }];
-    game.tick(0.016);
-
-    const spawned = game.numbers.find((item) => item.id !== 101)!;
-    expect(spawned.value).toBe(8);
-  });
-});
 
 describe('Penalita quando un numero tocca terra', () => {
   it('takes away half of the number, rounded down', () => {
@@ -496,5 +473,106 @@ describe('Penalita quando un numero tocca terra', () => {
     expect(product.penalty(9)).toBe(3);
     expect(division.penalty(100)).toBe(3);
     expect(subtraction.penalty(1)).toBe(0);
+  });
+});
+
+describe('Modalita difficile', () => {
+  it('only uses the base chance of useful numbers', () => {
+    expect(new NumberRainGame(product).usefulChance).toBe(product.complementChance);
+    expect(new NumberRainGame(friends).usefulChance).toBe(0);
+  });
+
+  it('can drop the exact partner of a number already in the field', () => {
+    // 0.1: niente jolly, numero utile e compagno di un numero in campo.
+    const game = new NumberRainGame(product, () => 0.1);
+    game.target = 24;
+    game.numbers = [{ id: 101, value: 3, lane: 0, y: 0.9 }];
+    game.tick(0.016);
+
+    const spawned = game.numbers.find((item) => item.id !== 101)!;
+    expect(spawned.value).toBe(8);
+  });
+
+  it('keeps choosing random lanes', () => {
+    const game = new NumberRainGame(product, () => 0.1);
+    game.target = 24;
+    game.numbers = [{ id: 101, value: 6, lane: 4, y: 0.5 }];
+    game.tick(0.016);
+
+    const spawned = game.numbers.find((item) => item.id !== 101)!;
+    expect(spawned.value).toBe(4);
+    expect(spawned.lane).toBe(0);
+  });
+
+  it('uses bigger subtraction targets later', () => {
+    const game = new NumberRainGame(subtraction, () => 0.99);
+    game.elapsed = 300;
+    game.numbers = [
+      { id: 900, value: game.target! + 1, lane: 0, y: 0.5 },
+      { id: 901, value: 1, lane: 1, y: 0.5 },
+    ];
+    game.select(900);
+    game.select(901);
+    expect(game.target).toBe(20);
+  });
+});
+
+describe('Modalita facile', () => {
+  it('drops more useful numbers in every game', () => {
+    expect(new NumberRainGame(product, Math.random, { easy: true }).usefulChance).toBeCloseTo(product.complementChance + 0.35);
+    expect(new NumberRainGame(division, Math.random, { easy: true }).usefulChance).toBeLessThanOrEqual(0.95);
+    expect(new NumberRainGame(friends, Math.random, { easy: true }).usefulChance).toBeCloseTo(0.35);
+  });
+
+  it('drops the partner of the newest number in the next free lane', () => {
+    const game = new NumberRainGame(product, () => 0.1, { easy: true });
+    game.target = 24;
+    game.numbers = [
+      { id: 101, value: 3, lane: 0, y: 0.8 },
+      { id: 102, value: 6, lane: 4, y: 0.1 },
+    ];
+    game.tick(0.016);
+
+    const spawned = game.numbers.find((item) => item.id !== 101 && item.id !== 102)!;
+    // Il 6 e' entrato per ultimo (e' piu' in alto): cade il suo compagno 4,
+    // nella colonna 3 o 5 perche' la 4 e' ancora occupata dal 6.
+    expect(spawned.value).toBe(4);
+    expect([3, 5]).toContain(spawned.lane);
+  });
+
+  it('drops the partner right next to the newest number in Amici del 10', () => {
+    const game = new NumberRainGame(friends, () => 0.1, { easy: true });
+    game.numbers = [{ id: 101, value: 3, lane: 2, y: 0.05 }];
+    game.tick(0.016);
+
+    const spawned = game.numbers.find((item) => item.id !== 101)!;
+    expect(spawned.value).toBe(7);
+    expect([1, 3]).toContain(spawned.lane);
+  });
+
+  it('keeps the subtraction target between 1 and 10 at every level', () => {
+    const game = new NumberRainGame(subtraction, () => 0.99, { easy: true });
+    game.elapsed = 300;
+    for (let round = 0; round < 20; round += 1) {
+      expect(game.target).toBeGreaterThanOrEqual(1);
+      expect(game.target).toBeLessThanOrEqual(10);
+      game.numbers = [
+        { id: 900 + round * 2, value: game.target! + 1, lane: 0, y: 0.5 },
+        { id: 901 + round * 2, value: 1, lane: 1, y: 0.5 },
+      ];
+      game.selectedIds = [];
+      game.select(900 + round * 2);
+      game.select(901 + round * 2);
+    }
+  });
+
+  it('can pick a target of 1 in easy subtraction', () => {
+    expect(new NumberRainGame(subtraction, () => 0, { easy: true }).target).toBe(1);
+  });
+
+  it('keeps the usual targets in the other games', () => {
+    const easy = new NumberRainGame(product, () => 0.5, { easy: true });
+    const hard = new NumberRainGame(product, () => 0.5);
+    expect(easy.target).toBe(hard.target);
   });
 });

@@ -21,6 +21,8 @@ type Texts = {
   jolly: string;
   /** Spiegazione del bersaglio (solo per i giochi che ne hanno uno). */
   target: string | null;
+  /** Cosa cambia in modalita' facile. */
+  easy: string;
   example: string;
   hint: string;
   groups: string;
@@ -38,6 +40,7 @@ const TEXTS: Record<VariantId, Texts> = {
     triple: 'il <strong>doppio</strong> della somma',
     jolly: 'porta la somma al multiplo di 10 successivo (37 + ★ = 40)',
     target: null,
+    easy: 'cadono più numeri che ti servono, vicini tra loro',
     example: 'Esempio: 37 + 23 = 60 → +60 · 31 + 12 + 17 = 60 → +120 · 37 + 25 = 62 ❌',
     hint: 'Tocca due o tre numeri che insieme fanno 10, 20, 30…',
     groups: 'gruppi',
@@ -53,6 +56,7 @@ const TEXTS: Record<VariantId, Texts> = {
     triple: 'il doppio: <strong>20 punti</strong>',
     jolly: 'completa il 10 con qualunque numero (6 + ★ = 10)',
     target: null,
+    easy: 'cadono più numeri che ti servono, vicini tra loro',
     example: 'Esempio: 3 + 7 = 10 → +10 · 2 + 3 + 5 = 10 → +20 · 4 + 5 = 9 ❌',
     hint: 'Tocca due o tre numeri che insieme fanno 10',
     groups: 'gruppi',
@@ -68,6 +72,7 @@ const TEXTS: Record<VariantId, Texts> = {
     triple: 'il doppio: <strong>20 punti</strong>',
     jolly: 'vale il fattore che manca (bersaglio 24: 6 × ★ → ★ = 4)',
     target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano le tabelline più difficili.',
+    easy: 'cadono più numeri che ti servono, vicini tra loro',
     example: 'Bersaglio 24: 3 × 8 → +10 · 2 × 3 × 4 → +20 · 4 × 5 = 20 ❌',
     hint: 'Tocca due o tre numeri che moltiplicati fanno il bersaglio',
     groups: 'bersagli',
@@ -83,6 +88,7 @@ const TEXTS: Record<VariantId, Texts> = {
     triple: 'il doppio: <strong>20 punti</strong>',
     jolly: 'è il numero che manca (bersaglio 6: 13 − ★ → ★ = 7)',
     target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano bersagli più grandi.',
+    easy: 'cadono più numeri che ti servono, vicini tra loro, e il bersaglio è sempre tra 1 e 10',
     example: 'Bersaglio 6: 13 − 7 → +10 · 20 − 9 − 5 → +20 · 13 − 8 = 5 ❌',
     hint: 'Tocca due o tre numeri: il più grande meno gli altri deve fare il bersaglio',
     groups: 'bersagli',
@@ -98,6 +104,7 @@ const TEXTS: Record<VariantId, Texts> = {
     triple: null,
     jolly: 'fa da divisore o da dividendo (bersaglio 6: 42 : ★ → ★ = 7)',
     target: 'Il bersaglio è scritto sopra il campo: ogni volta che lo colpisci ne arriva uno nuovo. Dopo 30 secondi arrivano divisioni più difficili.',
+    easy: 'cadono più numeri che ti servono, vicini tra loro',
     example: 'Bersaglio 6: 42 : 7 → +10 (puoi toccarli in qualunque ordine) · 42 : 6 = 7 ❌',
     hint: 'Tocca un dividendo e un divisore che fanno il bersaglio',
     groups: 'bersagli',

@@ -25,10 +25,19 @@
         }
       </ul>
       <p class="rules-example">{{ texts().example }}</p>
-      <label class="easy-toggle">
-        <input type="checkbox" [checked]="easy()" (change)="easy.set($any($event.target).checked)" />
-        <span><strong>🐢 Modalità facile</strong>: cadono più numeri che ti servono</span>
-      </label>
+      <div class="difficulty">
+        <div class="mode-switch" role="radiogroup" aria-label="Difficoltà">
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="easy()" [attr.aria-checked]="easy()" (click)="easy.set(true)">🐢 Facile</button>
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="!easy()" [attr.aria-checked]="!easy()" (click)="easy.set(false)">🔥 Difficile</button>
+        </div>
+        <p class="difficulty__description">
+          @if (easy()) {
+            <strong>Facile</strong>: {{ texts().easy }}.
+          } @else {
+            <strong>Difficile</strong>: nessun aiuto, i numeri cadono a caso.
+          }
+        </p>
+      </div>
       <button class="primary-button" type="button" (click)="start()">Inizia</button>
     </section>
   } @else if (phase() === 'won') {
@@ -54,7 +63,7 @@
     <div class="exercise-card game-card">
       <div class="game-status">
         <p class="game-bonus" [class.game-bonus--low]="bonus() < 50" aria-live="polite">Bonus: <strong>{{ bonus() }}</strong>@if (winBonus(); as target) { <span class="game-bonus__target">/ {{ target }}</span> }</p>
-        <p class="game-info"><span class="game-info__groups">{{ texts().groups }}</span>: {{ pairs() }} · Livello {{ level() }} · {{ seconds() }} s@if (easy()) { · 🐢 Facile }</p>
+        <p class="game-info"><span class="game-info__groups">{{ texts().groups }}</span>: {{ pairs() }} · Livello {{ level() }} · {{ seconds() }} s · {{ easy() ? '🐢 Facile' : '🔥 Difficile' }}</p>
         <button class="secondary-button pause-button" type="button" (click)="togglePause()">{{ phase() === 'paused' ? 'Riprendi' : 'Pausa' }}</button>
       </div>
 

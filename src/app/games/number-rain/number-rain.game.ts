@@ -8,13 +8,20 @@ const BASE_FALL_SPEED = 0.055;
 // Evita salti enormi se la scheda resta in background o il frame si blocca.
 const MAX_STEP_SECONDS = 0.1;
 // Modalita' facile: quanto aumenta la probabilita' di numeri utili (fino a un massimo).
-const EASY_EXTRA_CHANCE = 0.3;
-const MAX_USEFUL_CHANCE = 0.9;
+const EASY_EXTRA_CHANCE = 0.35;
+const MAX_USEFUL_CHANCE = 0.95;
 // Nei giochi con bersaglio, quante volte un numero utile e' il compagno di uno gia' in campo.
 const PARTNER_CHANCE = 0.5;
+const EASY_PARTNER_CHANCE = 0.85;
+
+/** Valore del nuovo numero e, in modalita' facile, il numero in campo vicino al quale farlo cadere. */
+type Spawned = { value: number; anchor?: FallingNumber };
 
 export type GameOptions = {
-  /** Modalita' facile: cadono piu' numeri utili. */
+  /**
+   * Modalita' facile: piu' numeri utili, compagni vicini al numero piu' recente
+   * e, se la variante li prevede, bersagli piu' semplici (easyTargets).
+   */
   easy?: boolean;
 };
 
@@ -66,6 +73,8 @@ export type GameVariant = {
   nextTarget?: (random: Random, level: number, previous: number | null) => number;
   /** Giochi con bersaglio: un numero che serve per colpire il bersaglio indicato. */
   usefulValue?: (target: number, random: Random, level: number) => number;
+  /** Modalita' facile: bersagli tra cui scegliere sempre, a ogni livello (assente = come in modalita' difficile). */
+  easyTargets?: number[];
 };
 
 /** Un numero che tocca terra toglie meta' del suo valore, arrotondata per difetto (7 → 3). */
@@ -247,6 +256,7 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     winBonus: 100,
     speedFactor: 0.55,
     nextTarget: (random, level, previous) => pickTarget(random, range(2, level <= 1 ? 10 : 20), previous),
+    easyTargets: range(1, 10),
     // Meta' di una sottrazione giusta: il sottraendo (7) o il minuendo (13) per il bersaglio 6.
     usefulValue: (target, random) => {
       const subtrahend = pickWith(random, range(1, SUBTRACTION_MAX - target));
@@ -271,17 +281,27 @@ export class NumberRainGame {
 
   /** Probabilita' che un nuovo numero sia utile (piu' alta in modalita' facile). */
   readonly usefulChance: number;
+  private readonly easy: boolean;
 
   constructor(
     private readonly variant: GameVariant = VARIANTS.rain,
     private readonly random: Random = Math.random,
     options: GameOptions = {},
   ) {
+    this.easy = options.easy ?? false;
     this.bonus = variant.startBonus;
-    this.target = variant.nextTarget?.(random, 1, null) ?? null;
-    this.usefulChance = options.easy
+    this.target = this.chooseTarget(null);
+    this.usefulChance = this.easy
       ? Math.min(MAX_USEFUL_CHANCE, variant.complementChance + EASY_EXTRA_CHANCE)
       : variant.complementChance;
+  }
+
+  /** Prossimo bersaglio (null per i giochi senza bersaglio). */
+  private chooseTarget(previous: number | null): number | null {
+    if (this.easy && this.variant.easyTargets !== undefined) {
+      return pickTarget(this.random, this.variant.easyTargets, previous);
+    }
+    return this.variant.nextTarget?.(this.random, this.level, previous) ?? null;
   }
 
   get level(): number {
@@ -364,8 +384,8 @@ export class NumberRainGame {
       ids.forEach((selected) => this.remove(selected));
       this.bonus += points;
       this.pairs += 1;
-      if (this.variant.nextTarget !== undefined) {
-        this.target = this.variant.nextTarget(this.random, this.level, this.target);
+      if (this.target !== null) {
+        this.target = this.chooseTarget(this.target);
       }
       if (this.variant.winBonus !== undefined && this.bonus >= this.variant.winBonus) {
         this.isWon = true;
@@ -391,35 +411,60 @@ export class NumberRainGame {
     if (this.random() < this.variant.jollyChance) {
       this.numbers.push({ id: this.nextId++, value: 0, lane, y: 0, jolly: true });
     } else {
-      this.numbers.push({ id: this.nextId++, value: this.nextValue(), lane, y: 0 });
+      const { value, anchor } = this.nextValue();
+      // In modalita' facile il compagno cade nella colonna libera piu' vicina al suo numero.
+      const nearLane = anchor === undefined ? lane : this.nearestLane(freeLanes, anchor.lane);
+      this.numbers.push({ id: this.nextId++, value, lane: nearLane, y: 0 });
     }
     return true;
   }
 
-  private nextValue(): number {
+  private nextValue(): Spawned {
     if (this.variant.usefulValue !== undefined && this.target !== null) {
       if (this.random() >= this.usefulChance) {
-        return this.pick(this.variant.values);
+        return { value: this.pick(this.variant.values) };
       }
       // Meglio ancora del numero utile: il compagno esatto di un numero gia' in campo.
       const partners = this.partnersInField(this.target);
-      return partners.length > 0 && this.random() < PARTNER_CHANCE
-        ? this.pick(partners)
-        : this.variant.usefulValue(this.target, this.random, this.level);
+      if (partners.length > 0 && this.random() < (this.easy ? EASY_PARTNER_CHANCE : PARTNER_CHANCE)) {
+        return this.easy ? this.partnerOfNewest(partners) : { value: this.pick(partners.map((partner) => partner.value)) };
+      }
+      return { value: this.variant.usefulValue(this.target, this.random, this.level) };
     }
-    const partners = this.numbers.filter((item) => !item.jolly);
-    if (partners.length > 0 && this.random() < this.usefulChance) {
-      const partner = this.pick(partners).value;
-      return this.pick(this.variant.values.filter((value) => this.variant.isMatch([partner, value], this.target)));
+    const inField = this.numbers.filter((item) => !item.jolly);
+    if (inField.length > 0 && this.random() < this.usefulChance) {
+      const partner = this.easy ? this.newest(inField) : this.pick(inField);
+      const value = this.pick(this.variant.values.filter((candidate) => this.variant.isMatch([partner.value, candidate], this.target)));
+      return this.easy ? { value, anchor: partner } : { value };
     }
-    return this.pick(this.variant.values);
+    return { value: this.pick(this.variant.values) };
   }
 
-  /** Valori che formerebbero subito una coppia valida con un numero gia' in campo. */
-  private partnersInField(target: number): number[] {
+  /** Coppie (numero in campo, valore che lo completa) per il bersaglio indicato. */
+  private partnersInField(target: number): { item: FallingNumber; value: number }[] {
     return this.numbers
       .filter((item) => !item.jolly)
-      .flatMap((item) => this.variant.values.filter((value) => this.variant.isMatch([item.value, value], target)));
+      .flatMap((item) =>
+        this.variant.values.filter((value) => this.variant.isMatch([item.value, value], target)).map((value) => ({ item, value })),
+      );
+  }
+
+  /** Modalita' facile: il compagno del numero entrato per ultimo, cosi' i due cadono quasi alla stessa altezza. */
+  private partnerOfNewest(partners: { item: FallingNumber; value: number }[]): Spawned {
+    const anchor = this.newest(partners.map((partner) => partner.item));
+    const values = partners.filter((partner) => partner.item === anchor).map((partner) => partner.value);
+    return { value: this.pick(values), anchor };
+  }
+
+  /** Il numero piu' in alto, cioe' entrato in campo per ultimo. */
+  private newest(items: FallingNumber[]): FallingNumber {
+    return items.reduce((highest, item) => (item.y < highest.y ? item : highest));
+  }
+
+  /** La colonna libera piu' vicina a quella indicata (a parita' di distanza, una delle due a caso). */
+  private nearestLane(freeLanes: number[], lane: number): number {
+    const distance = Math.min(...freeLanes.map((free) => Math.abs(free - lane)));
+    return this.pick(freeLanes.filter((free) => Math.abs(free - lane) === distance));
   }
 
   private pick<T>(items: T[]): T {

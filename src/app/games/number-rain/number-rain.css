@@ -17,24 +17,19 @@
   font-size: 0.95rem;
 }
 
-.easy-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.6rem;
+.difficulty {
   margin: 0 0 1.25rem;
-  padding: 0.6rem 0.9rem;
-  border: 2px solid #ccd3e0;
-  border-radius: 10px;
-  background: #f8f9fc;
-  color: #444;
-  text-align: left;
-  cursor: pointer;
 }
 
-.easy-toggle input {
-  width: 1.2rem;
-  height: 1.2rem;
-  accent-color: #2b3a67;
+.difficulty .mode-switch {
+  margin: 0 0 0.5rem;
+}
+
+.difficulty__description {
+  min-height: 2.6rem;
+  margin: 0;
+  color: #555;
+  font-size: 0.95rem;
 }
 
 .game-card {
