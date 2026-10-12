@@ -7,6 +7,7 @@ const product = VARIANTS.product;
 const division = VARIANTS.division;
 const subtraction = VARIANTS.subtraction;
 const multiples = VARIANTS.multiples;
+const zeros = VARIANTS.zeros;
 
 function gameWith(variant: GameVariant, ...values: number[]): NumberRainGame {
   const game = new NumberRainGame(variant, () => 0);
@@ -657,5 +658,112 @@ describe('Caccia ai multipli', () => {
       const target = new NumberRainGame(multiples, () => seed, { easy: true }).target!;
       expect([2, 3, 4, 5, 10]).toContain(target);
     }
+  });
+});
+
+describe('Conta gli zeri', () => {
+  /** Calcola il risultato di "60 × 2 = ?" o "600 : 3 = ?". */
+  function solve(text: string): number {
+    const [, left, operator, right] = /^(\d+) ([×:]) (\d+) = \?$/.exec(text)!;
+    return operator === '×' ? Number(left) * Number(right) : Number(left) / Number(right);
+  }
+
+  function seeded(seed: number): () => number {
+    let state = seed;
+    return () => {
+      state = (state * 16807) % 2147483647;
+      return state / 2147483647;
+    };
+  }
+
+  it('asks multiplications and divisions with the right answer', () => {
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const game = new NumberRainGame(zeros, seeded(seed));
+      const question = game.question!;
+      expect(game.target).toBe(solve(question.text));
+      expect(Number.isInteger(question.answer)).toBe(true);
+      expect(question.distractors).not.toContain(question.answer);
+      expect(question.distractors.length).toBeGreaterThanOrEqual(3);
+    }
+  });
+
+  it('offers the typical mistakes with the zeros as wrong answers', () => {
+    const game = new NumberRainGame(zeros, seeded(3));
+    const { answer, distractors } = game.question!;
+    expect(distractors).toContain(answer * 10);
+    if (answer % 10 === 0) {
+      expect(distractors).toContain(answer / 10);
+    }
+  });
+
+  it('only asks tens times a digit in easy mode', () => {
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const text = new NumberRainGame(zeros, seeded(seed), { easy: true }).question!.text;
+      const numbers = text.match(/\d+/g)!.map(Number);
+      if (text.includes('×')) {
+        expect(numbers.sort((a, b) => a - b)[0]).toBeLessThan(10);
+        expect(numbers.every((value) => value < 100)).toBe(true);
+      } else {
+        expect(numbers[0]).toBeLessThan(1000);
+      }
+    }
+  });
+
+  it('also asks hundreds and tens times tens in hard mode', () => {
+    const texts = Array.from({ length: 300 }, (_, seed) => new NumberRainGame(zeros, seeded(seed + 1)).question!.text);
+    expect(texts.some((text) => /\b\d00 ×|× \d00\b/.test(text))).toBe(true);
+    expect(texts.some((text) => /^\d0 × \d0 /.test(text))).toBe(true);
+  });
+
+  it('gives 10 points for the right answer and asks a new question', () => {
+    // Con un generatore sempre uguale la nuova domanda sarebbe identica: serve un seme vero.
+    const game = new NumberRainGame(zeros, seeded(7));
+    const { text, answer, distractors } = game.question!;
+    game.numbers = [
+      { id: 101, value: answer, lane: 0, y: 0.5 },
+      { id: 102, value: distractors[0], lane: 1, y: 0.5 },
+    ];
+    expect(game.select(101)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.bonus).toBe(zeros.startBonus + 10);
+    expect(game.question!.text).not.toBe(text);
+  });
+
+  it('takes away 5 points for a wrong answer', () => {
+    const game = new NumberRainGame(zeros, () => 0.5);
+    game.numbers = [{ id: 101, value: game.question!.distractors[0], lane: 0, y: 0.5 }];
+    expect(game.select(101)).toEqual(expect.objectContaining({ type: 'mismatch', penalty: 5 }));
+    expect(game.bonus).toBe(zeros.startBonus - 5);
+  });
+
+  it('only loses points when the right answer reaches the ground', () => {
+    const game = new NumberRainGame(zeros, () => 0.5);
+    const { answer, distractors } = game.question!;
+    game.numbers = [
+      { id: 101, value: answer, lane: 0, y: 0.999 },
+      { id: 102, value: distractors[0], lane: 1, y: 0.999 },
+    ];
+    game.tick(0.1);
+    expect(game.bonus).toBe(zeros.startBonus - 3);
+  });
+
+  it('drops fewer jollies in easy mode', () => {
+    // 0.03: sopra la soglia facile (0.02), sotto quella normale (0.05).
+    const easy = new NumberRainGame(zeros, () => 0.03, { easy: true });
+    easy.tick(0.016);
+    expect(easy.numbers[0].jolly).toBeUndefined();
+
+    const hard = new NumberRainGame(zeros, () => 0.03);
+    hard.tick(0.016);
+    expect(hard.numbers[0].jolly).toBe(true);
+  });
+
+  it('drops the right answer or one of its typical mistakes', () => {
+    const useful = new NumberRainGame(zeros, () => 0.1);
+    useful.tick(0.016);
+    expect(useful.numbers[0].value).toBe(useful.target);
+
+    const wrong = new NumberRainGame(zeros, () => 0.5);
+    wrong.tick(0.016);
+    expect(wrong.question!.distractors).toContain(wrong.numbers[0].value);
   });
 });

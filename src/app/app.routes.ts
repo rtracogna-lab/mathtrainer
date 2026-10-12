@@ -21,6 +21,7 @@ export const routes: Routes = [
 	{ path: 'prodotto-bersaglio', component: NumberRainComponent, title: 'Prodotto bersaglio', data: { variant: 'product' } },
 	{ path: 'sottrazione-bersaglio', component: NumberRainComponent, title: 'Sottrazione bersaglio', data: { variant: 'subtraction' } },
 	{ path: 'caccia-ai-multipli', component: NumberRainComponent, title: 'Caccia ai multipli', data: { variant: 'multiples' } },
+	{ path: 'conta-gli-zeri', component: NumberRainComponent, title: 'Conta gli zeri', data: { variant: 'zeros' } },
 	{ path: 'divisione-bersaglio', component: NumberRainComponent, title: 'Divisione bersaglio', data: { variant: 'division' } },
 	{ path: '**', redirectTo: '' },
 ];

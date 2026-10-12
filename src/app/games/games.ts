@@ -22,6 +22,7 @@ export class GamesComponent {
     { name: 'Sottrazione bersaglio', description: 'Trova i numeri la cui differenza fa il bersaglio', symbol: '−', route: '/sottrazione-bersaglio' },
     { name: 'Prodotto bersaglio', description: 'Trova i numeri che moltiplicati fanno il bersaglio', symbol: '×', route: '/prodotto-bersaglio' },
     { name: 'Caccia ai multipli', description: 'Tocca solo i multipli della tabellina', symbol: '🎯', route: '/caccia-ai-multipli' },
+    { name: 'Conta gli zeri', description: 'Trova il risultato di 60 × 2 o 600 : 3 senza perdere gli zeri', symbol: '0', route: '/conta-gli-zeri' },
     { name: 'Divisione bersaglio', description: 'Trova dividendo e divisore che fanno il bersaglio', symbol: ':', route: '/divisione-bersaglio' },
   ];
 }

@@ -71,7 +71,7 @@
       </div>
 
       @if (target() !== null) {
-        <p class="game-target" aria-live="polite">🎯 {{ texts().targetLabel }} <strong>{{ target() }}</strong></p>
+        <p class="game-target" aria-live="polite">🎯 {{ texts().targetLabel }} <strong>{{ targetText() ?? target() }}</strong></p>
       }
       <div class="game-field" [style.--lanes]="lanes" aria-label="Campo di gioco">
         @for (number of numbers(); track number.id) {

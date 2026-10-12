@@ -36,6 +36,9 @@ export type GameEvent =
 
 type Random = () => number;
 
+/** Domanda mostrata sopra il campo (es. "60 × 2 = ?"), con la risposta giusta e quelle sbagliate tipiche. */
+export type Question = { text: string; answer: number; distractors: number[] };
+
 export type GameVariant = {
   /** Valori che possono cadere. */
   values: number[];
@@ -57,6 +60,8 @@ export type GameVariant = {
   complementChance: number;
   /** Probabilita' che il nuovo elemento sia un jolly (0 = nessun jolly). */
   jollyChance: number;
+  /** Modalita' facile: probabilita' di un jolly (assente = jollyChance). */
+  easyJollyChance?: number;
   /**
    * Totale del gruppo quando i numeri selezionati sono completati da un jolly,
    * oppure null se il jolly non puo' completarli.
@@ -86,6 +91,11 @@ export type GameVariant = {
   easyExtraChance?: number;
   /** Giochi con bersaglio: numero casuale da far cadere quando non serve un numero utile (assente = uno di values). */
   randomValue?: (target: number, random: Random, level: number) => number;
+  /**
+   * Giochi a domanda: genera la prossima domanda. Il bersaglio diventa la risposta giusta
+   * e i numeri "non utili" che cadono sono le risposte sbagliate della domanda.
+   */
+  nextQuestion?: (random: Random, level: number, easy: boolean) => Question;
 };
 
 /** Un numero che tocca terra toglie meta' del suo valore, arrotondata per difetto (7 → 3). */
@@ -141,13 +151,53 @@ function quotient(values: number[]): number | null {
   return dividend % divisor === 0 ? dividend / divisor : null;
 }
 
-export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction' | 'multiples';
+export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction' | 'multiples' | 'zeros';
 
 /** Caccia ai multipli: punti per ogni multiplo preso (con il jolly, per ciascun multiplo catturato). */
 const MULTIPLE_POINTS = 5;
 /** Caccia ai multipli: il bersaglio (la tabellina) cambia dopo questi multipli presi. */
 const MULTIPLES_PER_TABLE = 8;
 const isMultiple = (value: number, target?: number | null) => target != null && value % target === 0;
+
+/** Quanti zeri ha in fondo un numero (120 → 1, 600 → 2, 12 → 0). */
+function trailingZeros(value: number): number {
+  let zeros = 0;
+  while (value !== 0 && value % 10 === 0) {
+    value /= 10;
+    zeros += 1;
+  }
+  return zeros;
+}
+
+/**
+ * Risposte sbagliate tipiche per un'operazione con gli zeri:
+ * uno zero in meno (12) o in piu' (1200), la tabellina sbagliata di uno (110, 130)
+ * e i risultati delle operazioni sbagliate passate in wrongOperations (60 + 2 = 62).
+ */
+function zerosDistractors(answer: number, wrongOperations: number[]): number[] {
+  const step = 10 ** trailingZeros(answer);
+  const candidates = [answer / 10, answer * 10, answer - step, answer + step, ...wrongOperations];
+  return [...new Set(candidates)].filter((value) => Number.isInteger(value) && value > 0 && value !== answer);
+}
+
+/**
+ * Conta gli zeri: moltiplicazioni e divisioni con decine e centinaia (60 × 2, 600 : 3).
+ * Facile: solo decine per un numero a una cifra. Difficile: anche centinaia e decine per decine (20 × 30).
+ */
+function zerosQuestion(random: Random, _level: number, easy: boolean): Question {
+  const a = pickWith(random, range(2, 9));
+  const b = pickWith(random, range(2, 9));
+  const pattern = easy ? 'tens' : pickWith(random, ['tens', 'hundreds', 'tensByTens']);
+  const [first, second] = pattern === 'tens' ? [a * 10, b] : pattern === 'hundreds' ? [a * 100, b] : [a * 10, b * 10];
+  const product = first * second;
+  if (random() < 0.5) {
+    const [left, right] = random() < 0.5 ? [first, second] : [second, first];
+    return { text: `${left} × ${right} = ?`, answer: product, distractors: zerosDistractors(product, [left + right, Math.abs(left - right)]) };
+  }
+  // La divisione e' la moltiplicazione al contrario: 120 : 2 = 60 oppure 120 : 60 = 2.
+  const [divisor, quotient] = random() < 0.5 ? [second, first] : [first, second];
+  return { text: `${product} : ${divisor} = ?`, answer: quotient, distractors: zerosDistractors(quotient, [product - divisor]) };
+}
 
 export const VARIANTS: Record<VariantId, GameVariant> = {
   // Niente multipli di 10: il gruppo si forma solo combinando le unita' (es. 37 + 23).
@@ -312,6 +362,32 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     // Un numero qualunque fino a 10 volte la tabellina: quasi sempre un intruso.
     randomValue: (target, random) => pickWith(random, range(1, target * 10)),
   },
+  // Conta gli zeri: si tocca il risultato giusto di 60 × 2 o 600 : 3, evitando 12, 1200, 62...
+  zeros: {
+    values: [],
+    startBonus: 50,
+    maxPicks: 1,
+    operator: '×',
+    combine: (values) => values[0] ?? null,
+    isMatch: (values, target) => values.length === 1 && values[0] === target,
+    canExtend: () => false,
+    // Circa un numero su tre e' la risposta giusta, gli altri sono gli errori tipici.
+    complementChance: 0.35,
+    easyExtraChance: 0.15,
+    jollyChance: 0.05,
+    // In facile i jolly sono rari: il gioco deve allenare a contare gli zeri, non a prendere jolly.
+    easyJollyChance: 0.02,
+    completeWithJolly: () => null,
+    points: (_total, cards) => 10 * Math.max(1, cards),
+    penalty: (value, target) => (value === target ? MAX_TARGET_PENALTY : 0),
+    winBonus: 100,
+    speedFactor: 0.55,
+    singleTap: true,
+    wrongTapPenalty: 5,
+    nextQuestion: zerosQuestion,
+    // Il numero utile e' la risposta giusta; gli altri arrivano dalle risposte sbagliate della domanda.
+    usefulValue: (target) => target,
+  },
 };
 
 export class NumberRainGame {
@@ -322,8 +398,10 @@ export class NumberRainGame {
   selectedIds: number[] = [];
   isOver = false;
   isWon = false;
-  /** Bersaglio corrente, solo per i giochi che ne hanno uno. */
+  /** Bersaglio corrente, solo per i giochi che ne hanno uno (nei giochi a domanda: la risposta giusta). */
   target: number | null;
+  /** Domanda corrente, solo per i giochi a domanda (vedi nextQuestion). */
+  question: Question | null = null;
 
   private nextId = 1;
   private spawnTimer = 0;
@@ -333,6 +411,8 @@ export class NumberRainGame {
   /** Probabilita' che un nuovo numero sia utile (piu' alta in modalita' facile). */
   readonly usefulChance: number;
   private readonly easy: boolean;
+  /** Probabilita' che il nuovo elemento sia un jolly (piu' bassa in facile, se la variante lo prevede). */
+  private readonly jollyChance: number;
 
   constructor(
     private readonly variant: GameVariant = VARIANTS.rain,
@@ -340,6 +420,7 @@ export class NumberRainGame {
     options: GameOptions = {},
   ) {
     this.easy = options.easy ?? false;
+    this.jollyChance = this.easy ? (variant.easyJollyChance ?? variant.jollyChance) : variant.jollyChance;
     this.bonus = variant.startBonus;
     this.target = this.chooseTarget(null);
     this.usefulChance = this.easy
@@ -349,6 +430,15 @@ export class NumberRainGame {
 
   /** Prossimo bersaglio (null per i giochi senza bersaglio). */
   private chooseTarget(previous: number | null): number | null {
+    if (this.variant.nextQuestion !== undefined) {
+      // Una domanda nuova con una risposta diversa dalla precedente (bastano pochi tentativi).
+      let question = this.variant.nextQuestion(this.random, this.level, this.easy);
+      for (let attempt = 0; attempt < 5 && question.answer === previous; attempt += 1) {
+        question = this.variant.nextQuestion(this.random, this.level, this.easy);
+      }
+      this.question = question;
+      return question.answer;
+    }
     if (this.easy && this.variant.easyTargets !== undefined) {
       return pickTarget(this.random, this.variant.easyTargets, previous);
     }
@@ -496,7 +586,7 @@ export class NumberRainGame {
       return false;
     }
     const lane = this.pick(freeLanes);
-    if (this.random() < this.variant.jollyChance) {
+    if (this.random() < this.jollyChance) {
       this.numbers.push({ id: this.nextId++, value: 0, lane, y: 0, jolly: true });
     } else {
       const { value, anchor } = this.nextValue();
@@ -510,6 +600,9 @@ export class NumberRainGame {
   private nextValue(): Spawned {
     if (this.variant.usefulValue !== undefined && this.target !== null) {
       if (this.random() >= this.usefulChance) {
+        if (this.question !== null && this.question.distractors.length > 0) {
+          return { value: this.pick(this.question.distractors) };
+        }
         const random = this.variant.randomValue?.(this.target, this.random, this.level);
         return { value: random ?? this.pick(this.variant.values) };
       }

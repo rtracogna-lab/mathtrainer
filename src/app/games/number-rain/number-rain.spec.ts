@@ -173,7 +173,7 @@ describe('NumberRainComponent', () => {
   });
 
   it('lets the player choose between easy and hard in every game', () => {
-    for (const variant of ['rain', 'friends', 'product', 'division', 'subtraction', 'multiples']) {
+    for (const variant of ['rain', 'friends', 'product', 'division', 'subtraction', 'multiples', 'zeros']) {
       fixture.componentRef.setInput('variant', variant);
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelectorAll('.difficulty .mode-switch__option').length).toBe(2);
@@ -213,5 +213,27 @@ describe('NumberRainComponent', () => {
     tap(0);
     expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('50');
     expect(Array.from(fixture.nativeElement.querySelectorAll('.rain-popup')).map((popup) => (popup as HTMLElement).textContent)).toContain('-5');
+  });
+
+  it('plays Conta gli zeri showing the operation above the field', () => {
+    fixture.componentRef.setInput('variant', 'zeros');
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Conta gli zeri');
+
+    const game = startWith();
+    game.question = { text: '60 × 2 = ?', answer: 120, distractors: [12, 1200, 62] };
+    game.target = 120;
+    game.numbers = [
+      { id: 101, value: 12, lane: 0, y: 0.3 },
+      { id: 102, value: 120, lane: 1, y: 0.3 },
+    ];
+    fixture.componentInstance['sync']();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.game-target').textContent).toContain('60 × 2 = ?');
+
+    tap(0);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('45');
+    tap(0);
+    expect(fixture.nativeElement.querySelector('.game-bonus').textContent).toContain('55');
   });
 });

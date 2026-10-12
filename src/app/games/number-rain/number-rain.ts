@@ -123,6 +123,24 @@ const TEXTS: Record<VariantId, Texts> = {
     hint: 'Tocca solo i multipli della tabellina',
     groups: 'multipli',
   },
+  zeros: {
+    title: 'Conta gli zeri',
+    symbol: '0',
+    range: "che possono essere il risultato dell'operazione scritta sopra il campo",
+    pick: 'il risultato giusto',
+    goal: "dell'operazione 🎯 (60 × 2: fai 6 × 2 = 12 e poi aggiungi lo zero → <strong>120</strong>)",
+    reward: 'guadagni <strong>10 punti</strong> e arriva una nuova operazione',
+    landing: 'ed è il risultato giusto perdi <strong>3 punti</strong>: gli altri lasciali pure cadere',
+    triple: null,
+    jolly: 'prende da solo tutti i risultati giusti in campo',
+    target: 'Attenzione agli zeri: tra i numeri ci sono anche 12 e 1200!',
+    targetLabel: '',
+    wrong: 'Se tocchi un risultato sbagliato perdi 5 punti.',
+    easy: "solo decine per un numero a una cifra (60 × 2, 120 : 2) e un po' più risultati giusti",
+    example: 'Esempio: 60 × 2 → 120 ✅ · 12 ❌ · 1200 ❌ · 62 ❌ · 600 : 3 → 200 ✅',
+    hint: 'Tocca il risultato giusto: conta gli zeri!',
+    groups: 'risposte',
+  },
   division: {
     title: 'Divisione bersaglio',
     symbol: ':',
@@ -180,6 +198,8 @@ export class NumberRainComponent {
     return { operation: values.join(` ${variant.operator} `), result: result === null ? '?' : String(result) };
   });
   protected readonly target = signal<number | null>(null);
+  /** Testo del bersaglio nei giochi a domanda (es. "60 × 2 = ?"). */
+  protected readonly targetText = signal<string | null>(null);
   protected readonly bonus = signal(0);
   protected readonly bestBonus = signal(0);
   protected readonly pairs = signal(0);
@@ -296,6 +316,7 @@ export class NumberRainComponent {
     this.selectedLabels.set(this.game.selectedNumbers.map((item) => (item.jolly ? '★' : String(item.value))));
     this.bonus.set(this.game.bonus);
     this.target.set(this.game.target);
+    this.targetText.set(this.game.question?.text ?? null);
     this.bestBonus.update((best) => Math.max(best, this.game.bonus));
     this.pairs.set(this.game.pairs);
     this.seconds.set(Math.floor(this.game.elapsed));
