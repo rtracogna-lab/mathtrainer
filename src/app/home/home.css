@@ -75,6 +75,70 @@
   font-size: 0.9rem;
 }
 
+.skill-card {
+  position: relative;
+}
+
+.skill-card__badge {
+  position: absolute;
+  top: 0.6rem;
+  right: 0.6rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: #fff4d6;
+  color: #8a5a00;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.skill-card__badge--done {
+  background: #e3f4e4;
+  color: #2e7d32;
+}
+
+/* ---------- Percorso tabelline ---------- */
+
+.review-path {
+  margin: 0 0 2.5rem;
+  padding: 1.25rem;
+  border: 2px solid #f9a825;
+  border-radius: 16px;
+  background: #fffaf0;
+}
+
+.review-path__title {
+  margin: 0 0 0.4rem;
+  font-size: 1.4rem;
+}
+
+.review-path__subtitle {
+  margin: 0 0 1.25rem;
+  color: #555;
+}
+
+.skill-card--review {
+  border-color: #f9d27a;
+}
+
+.skill-card--done {
+  border-color: #81c784;
+}
+
+.skill-card--final {
+  grid-column: 1 / -1;
+  border: 2px solid #2b3a67;
+  background: #eef1fa;
+}
+
+.skill-card--locked {
+  border-style: dashed;
+  background: #f4f5f8;
+}
+
+.skill-card--locked .skill-card__icon {
+  background: #9aa3b8;
+}
+
 @media (max-width: 480px) {
   .home__grid {
     grid-template-columns: 1fr;

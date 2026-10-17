@@ -1,13 +1,37 @@
 <section class="home">
   <a class="home__back" routerLink="/">&#8592; Torna alla scelta dell'abilità</a>
   <h1 class="home__title">Scegli un gioco</h1>
-  <p class="home__subtitle">Prendi i numeri prima che tocchino terra!</p>
 
+  <section class="review-path" aria-labelledby="review-path-title">
+    <h2 id="review-path-title" class="review-path__title">🧠 Percorso tabelline</h2>
+    <p class="review-path__subtitle">Finisci almeno una volta questi {{ reviewGames.length }} giochi per sbloccare il <strong>Ripasso finale</strong>: ricorda le tabelline che sbagli e te le fa ripassare.</p>
+    <div class="home__grid">
+      @for (game of reviewGames; track game.id) {
+        @let done = factStats.played().includes(game.id);
+        <a class="skill-card skill-card--review" [class.skill-card--done]="done" [routerLink]="game.route">
+          <span class="skill-card__badge" [class.skill-card__badge--done]="done">{{ done ? '✓ Fatto' : 'Da fare' }}</span>
+          <span class="skill-card__icon" aria-hidden="true">{{ game.symbol }}</span>
+          <h3 class="skill-card__title">{{ game.name }}</h3>
+          <p class="skill-card__description">{{ game.description }}</p>
+        </a>
+      }
+      @let missing = factStats.missingGames().length;
+      <a class="skill-card skill-card--final" [class.skill-card--locked]="missing > 0" routerLink="/ripasso">
+        <span class="skill-card__badge" [class.skill-card__badge--done]="missing === 0">{{ missing === 0 ? 'Sbloccato' : '🔒 Mancano ' + missing }}</span>
+        <span class="skill-card__icon" aria-hidden="true">🏁</span>
+        <h3 class="skill-card__title">Ripasso finale</h3>
+        <p class="skill-card__description">Guarda quali tabelline sai e ripassa quelle che sbagli</p>
+      </a>
+    </div>
+  </section>
+
+  <h2 class="review-path__title">Altri giochi</h2>
+  <p class="home__subtitle">Prendi i numeri prima che tocchino terra!</p>
   <div class="home__grid">
     @for (game of games; track game.route) {
       <a class="skill-card" [routerLink]="game.route">
         <span class="skill-card__icon" aria-hidden="true">{{ game.symbol }}</span>
-        <h2 class="skill-card__title">{{ game.name }}</h2>
+        <h3 class="skill-card__title">{{ game.name }}</h3>
         <p class="skill-card__description">{{ game.description }}</p>
       </a>
     }

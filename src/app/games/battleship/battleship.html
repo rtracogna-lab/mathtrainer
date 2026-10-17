@@ -1,0 +1,110 @@
+<section class="skill-view">
+  <a class="skill-view__back" routerLink="/giochi">&#8592; Torna ai giochi</a>
+  <h1 class="skill-view__title"><span class="skill-view__symbol" aria-hidden="true">⚓</span> Battaglia navale</h1>
+
+  @if (phase() === 'intro') {
+    <section class="exercise-card" aria-labelledby="sea-title">
+      <h2 id="sea-title">Come si gioca</h2>
+      <ul class="rules">
+        <li>Nel mare è nascosta una <strong>flotta nemica</strong>. Le navi non si toccano, nemmeno in diagonale.</li>
+        <li>Ogni casella ha il numero della sua riga e della sua colonna: per sparare sulla casella 7 e 8 scrivi quanto fa <strong>7 × 8</strong>.</li>
+        <li>Se il risultato è giusto parte il colpo: 🌊 acqua, 💥 colpito o 🔥 affondato!</li>
+        <li>Se il risultato è sbagliato il colpo va perso: puoi riprovare, ma conta come errore.</li>
+        <li>Affonda tutte le navi con meno errori possibile per guadagnare <strong>3 stelle</strong>.</li>
+      </ul>
+      <p class="rules-example">Trucco: quando colpisci una nave, spara nelle caselle vicine (sopra, sotto, a destra, a sinistra).</p>
+      <div class="difficulty">
+        <div class="mode-switch" role="radiogroup" aria-label="Difficoltà">
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="easy()" [attr.aria-checked]="easy()" (click)="easy.set(true)">🐢 Facile</button>
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="!easy()" [attr.aria-checked]="!easy()" (click)="easy.set(false)">🔥 Difficile</button>
+        </div>
+        <p class="difficulty__description">
+          @if (easy()) {
+            <strong>Facile</strong>: mare 6 × 6 con le tabelline dal 2 al 7 e tre navi.
+          } @else {
+            <strong>Difficile</strong>: mare 8 × 8 con le tabelline dal 3 al 10 e quattro navi.
+          }
+        </p>
+      </div>
+      <button class="primary-button" type="button" (click)="start()">Inizia</button>
+    </section>
+  } @else if (phase() === 'won') {
+    <section class="exercise-card" aria-labelledby="sea-title">
+      <div class="result-icon" aria-hidden="true">🏆</div>
+      <h2 id="sea-title">Flotta affondata!</h2>
+      <p class="grid-stars" [attr.aria-label]="stars() + ' stelle su 3'">
+        @for (star of [1, 2, 3]; track star) {
+          <span [class.grid-stars__off]="star > stars()">★</span>
+        }
+      </p>
+      <p class="result-score">Hai sparato <strong>{{ shots() }}</strong> colpi con <strong>{{ errors() }}</strong> {{ errors() === 1 ? 'errore' : 'errori' }}.</p>
+      <div class="result-actions">
+        <button class="secondary-button" type="button" (click)="phase.set('intro')">Cambia difficoltà</button>
+        <button class="primary-button" type="button" (click)="start()">Gioca ancora</button>
+      </div>
+    </section>
+  } @else {
+    <div class="exercise-card game-card">
+      <div class="game-status">
+        <p class="sea-fleet" aria-label="Flotta nemica">
+          @for (ship of fleet(); track $index) {
+            <span class="sea-ship" [class.sea-ship--sunk]="ship.sunk" [attr.aria-label]="'Nave da ' + ship.parts.length + (ship.sunk ? ', affondata' : '')">
+              @for (part of ship.parts; track part) {<span class="sea-ship__part"></span>}
+            </span>
+          }
+        </p>
+        <p class="game-info">Colpi: {{ shots() }} · Errori: {{ errors() }} · {{ easy() ? '🐢 Facile' : '🔥 Difficile' }}</p>
+      </div>
+
+      <div class="sea" role="grid" aria-label="Mare" [style.--size]="factors().length + 1">
+        <div class="sea__row" role="row">
+          <span class="grid__corner" role="columnheader">×</span>
+          @for (col of factors(); track col) {
+            <span class="grid__head" role="columnheader" [class.grid__head--active]="selected()?.col === col">{{ col }}</span>
+          }
+        </div>
+        @for (row of factors(); track row) {
+          <div class="sea__row" role="row">
+            <span class="grid__head" role="rowheader" [class.grid__head--active]="selected()?.row === row">{{ row }}</span>
+            @for (square of rowSquares(row); track square.col) {
+              @if (square.shot === null) {
+                <button
+                  class="sea__square"
+                  type="button"
+                  role="gridcell"
+                  [class.sea__square--selected]="isSelected(square)"
+                  [attr.aria-label]="'Spara su ' + square.row + ' per ' + square.col"
+                  (click)="select(square)"
+                ></button>
+              } @else {
+                <span
+                  class="sea__square"
+                  role="gridcell"
+                  [class.sea__square--miss]="square.shot === 'miss'"
+                  [class.sea__square--hit]="square.shot === 'hit' && !square.sunk"
+                  [class.sea__square--sunk]="square.sunk"
+                  [attr.aria-label]="square.sunk ? 'Affondata' : square.shot === 'hit' ? 'Colpita' : 'Acqua'"
+                >{{ square.sunk ? '🔥' : square.shot === 'hit' ? '💥' : '•' }}</span>
+              }
+            }
+          </div>
+        }
+      </div>
+
+      <p class="sea-message" [class.sea-message--wrong]="message()?.kind === 'wrong'" aria-live="polite">{{ message()?.text ?? ' ' }}</p>
+      @if (selected(); as square) {
+        <p class="grid-question">{{ square.row }} × {{ square.col }} = <strong class="grid-question__answer">{{ typed() || '?' }}</strong></p>
+      } @else {
+        <p class="grid-question sea-hint">Tocca una casella per prendere la mira 🎯</p>
+      }
+      <div class="keypad" aria-label="Tastierino">
+        @for (digit of keypad; track digit) {
+          <button class="keypad__key" type="button" (click)="press(digit)">{{ digit }}</button>
+        }
+        <button class="keypad__key keypad__key--erase" type="button" aria-label="Cancella" (click)="erase()">⌫</button>
+        <button class="keypad__key" type="button" (click)="press('0')">0</button>
+        <button class="keypad__key keypad__key--ok" type="button" (click)="fire()">Fuoco!</button>
+      </div>
+    </div>
+  }
+</section>

@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FactStats, REVIEW_GAMES } from '../review/fact-stats';
 
 type Game = {
   name: string;
@@ -16,6 +17,9 @@ type Game = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GamesComponent {
+  protected readonly factStats = inject(FactStats);
+  /** Giochi che preparano il ripasso finale (tabelline). */
+  protected readonly reviewGames = REVIEW_GAMES;
   protected readonly games: Game[] = [
     { name: 'Pioggia di numeri', description: 'Abbina numeri da 1 a 99 che fanno 10, 20, 30…', symbol: '10', route: '/pioggia-di-numeri' },
     { name: 'Amici del 10', description: 'Abbina numeri da 1 a 9 che fanno esattamente 10', symbol: '🤝', route: '/amici-del-10' },

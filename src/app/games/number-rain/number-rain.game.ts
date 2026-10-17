@@ -37,7 +37,13 @@ export type GameEvent =
 type Random = () => number;
 
 /** Domanda mostrata sopra il campo (es. "60 × 2 = ?"), con la risposta giusta e quelle sbagliate tipiche. */
-export type Question = { text: string; answer: number; distractors: number[] };
+export type Question = {
+  text: string;
+  answer: number;
+  distractors: number[];
+  /** Tabellina allenata dalla domanda (es. [7, 8] per "7 × ? = 56"), per il ripasso mirato. */
+  fact?: [number, number];
+};
 
 export type GameVariant = {
   /** Valori che possono cadere. */
@@ -151,7 +157,7 @@ function quotient(values: number[]): number | null {
   return dividend % divisor === 0 ? dividend / divisor : null;
 }
 
-export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction' | 'multiples' | 'zeros';
+export type VariantId = 'rain' | 'friends' | 'product' | 'division' | 'subtraction' | 'multiples' | 'zeros' | 'missing';
 
 /** Caccia ai multipli: punti per ogni multiplo preso (con il jolly, per ciascun multiplo catturato). */
 const MULTIPLE_POINTS = 5;
@@ -197,6 +203,23 @@ function zerosQuestion(random: Random, _level: number, easy: boolean): Question 
   // La divisione e' la moltiplicazione al contrario: 120 : 2 = 60 oppure 120 : 60 = 2.
   const [divisor, quotient] = random() < 0.5 ? [second, first] : [first, second];
   return { text: `${product} : ${divisor} = ?`, answer: quotient, distractors: zerosDistractors(quotient, [product - divisor]) };
+}
+
+/** Fattore mancante, facile: tabelline piu' semplici per il fattore scritto. */
+const EASY_MISSING_TABLES = [2, 3, 4, 5, 10];
+
+/**
+ * Fattore mancante: la tabellina al contrario (7 × ? = 56).
+ * Le risposte sbagliate sono i fattori vicini (6, 7, 9, 10) e il fattore gia' scritto.
+ */
+function missingQuestion(random: Random, _level: number, easy: boolean): Question {
+  const shown = pickWith(random, easy ? EASY_MISSING_TABLES : FACTORS);
+  const missing = pickWith(random, FACTORS);
+  const product = shown * missing;
+  const text = random() < 0.5 ? `${shown} × ? = ${product}` : `? × ${shown} = ${product}`;
+  const candidates = [missing - 2, missing - 1, missing + 1, missing + 2, shown];
+  const distractors = [...new Set(candidates)].filter((value) => value > 0 && value !== missing);
+  return { text, answer: missing, distractors, fact: [shown, missing] };
 }
 
 export const VARIANTS: Record<VariantId, GameVariant> = {
@@ -386,6 +409,29 @@ export const VARIANTS: Record<VariantId, GameVariant> = {
     wrongTapPenalty: 5,
     nextQuestion: zerosQuestion,
     // Il numero utile e' la risposta giusta; gli altri arrivano dalle risposte sbagliate della domanda.
+    usefulValue: (target) => target,
+  },
+  // Fattore mancante: si tocca il numero che completa la tabellina (7 × ? = 56 → 8).
+  missing: {
+    values: [],
+    startBonus: 50,
+    maxPicks: 1,
+    operator: '×',
+    combine: (values) => values[0] ?? null,
+    isMatch: (values, target) => values.length === 1 && values[0] === target,
+    canExtend: () => false,
+    complementChance: 0.35,
+    easyExtraChance: 0.15,
+    jollyChance: 0.05,
+    easyJollyChance: 0.02,
+    completeWithJolly: () => null,
+    points: (_total, cards) => 10 * Math.max(1, cards),
+    penalty: (value, target) => (value === target ? MAX_TARGET_PENALTY : 0),
+    winBonus: 100,
+    speedFactor: 0.55,
+    singleTap: true,
+    wrongTapPenalty: 5,
+    nextQuestion: missingQuestion,
     usefulValue: (target) => target,
   },
 };

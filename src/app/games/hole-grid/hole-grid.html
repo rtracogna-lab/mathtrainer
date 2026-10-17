@@ -1,0 +1,97 @@
+<section class="skill-view">
+  <a class="skill-view__back" routerLink="/giochi">&#8592; Torna ai giochi</a>
+  <h1 class="skill-view__title"><span class="skill-view__symbol" aria-hidden="true">▦</span> La griglia a buchi</h1>
+
+  @if (phase() === 'intro') {
+    <section class="exercise-card" aria-labelledby="grid-title">
+      <h2 id="grid-title">Come si gioca</h2>
+      <ul class="rules">
+        <li>Ecco la <strong>tavola pitagorica</strong>: ogni casella è il prodotto del numero della sua riga per quello della sua colonna.</li>
+        <li>Alcune caselle sono <strong>vuote</strong>: tocca un buco, scrivi il risultato e premi <strong>OK</strong>.</li>
+        <li>Se sbagli, il buco trema e conta un errore: riprova!</li>
+        <li>Completa tutta la griglia con meno errori possibile per guadagnare <strong>3 stelle</strong>.</li>
+        <li>Guarda i numeri vicini: nella stessa riga si va avanti sempre dello stesso passo, e 3 × 7 è uguale a 7 × 3.</li>
+      </ul>
+      <p class="rules-example">Esempio: riga 7, colonna 8 → 7 × 8 = <strong>56</strong></p>
+      <div class="difficulty">
+        <div class="mode-switch" role="radiogroup" aria-label="Difficoltà">
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="easy()" [attr.aria-checked]="easy()" (click)="easy.set(true)">🐢 Facile</button>
+          <button class="mode-switch__option" type="button" role="radio" [class.mode-switch__option--active]="!easy()" [attr.aria-checked]="!easy()" (click)="easy.set(false)">🔥 Difficile</button>
+        </div>
+        <p class="difficulty__description">
+          @if (easy()) {
+            <strong>Facile</strong>: 12 buchi, e la casella gemella (7 × 3 per 3 × 7) è sempre scritta.
+          } @else {
+            <strong>Difficile</strong>: una tabellina intera sparisce, più 15 buchi sparsi.
+          }
+        </p>
+      </div>
+      <button class="primary-button" type="button" (click)="start()">Inizia</button>
+    </section>
+  } @else if (phase() === 'done') {
+    <section class="exercise-card" aria-labelledby="grid-title">
+      <div class="result-icon" aria-hidden="true">🏆</div>
+      <h2 id="grid-title">Griglia completata!</h2>
+      <p class="grid-stars" [attr.aria-label]="stars() + ' stelle su 3'">
+        @for (star of [1, 2, 3]; track star) {
+          <span [class.grid-stars__off]="star > stars()">★</span>
+        }
+      </p>
+      <p class="result-score">Hai riempito <strong>{{ total() }}</strong> buchi in <strong>{{ seconds() }} secondi</strong> con <strong>{{ errors() }}</strong> {{ errors() === 1 ? 'errore' : 'errori' }}.</p>
+      <div class="result-actions">
+        <button class="secondary-button" type="button" (click)="phase.set('intro')">Cambia difficoltà</button>
+        <button class="primary-button" type="button" (click)="start()">Gioca ancora</button>
+      </div>
+    </section>
+  } @else {
+    <div class="exercise-card game-card">
+      <div class="game-status">
+        <p class="game-bonus" aria-live="polite">Buchi: <strong>{{ remaining() }}</strong> <span class="game-bonus__target">/ {{ total() }}</span></p>
+        <p class="game-info">Errori: {{ errors() }} · {{ seconds() }} s · {{ easy() ? '🐢 Facile' : '🔥 Difficile' }}</p>
+      </div>
+
+      <div class="grid" role="grid" aria-label="Tavola pitagorica">
+        <div class="grid__row" role="row">
+          <span class="grid__corner" role="columnheader">×</span>
+          @for (col of factors; track col) {
+            <span class="grid__head" role="columnheader" [class.grid__head--active]="selected()?.col === col">{{ col }}</span>
+          }
+        </div>
+        @for (row of factors; track row) {
+          <div class="grid__row" role="row">
+            <span class="grid__head" role="rowheader" [class.grid__head--active]="selected()?.row === row" [class.grid__head--empty]="emptyRow() === row">{{ row }}</span>
+            @for (cell of rowCells(row); track cell.col) {
+              @if (cell.hole && !cell.solved) {
+                <button
+                  class="grid__cell grid__hole"
+                  type="button"
+                  role="gridcell"
+                  [class.grid__cell--crossed]="isCrossed(cell)"
+                  [class.grid__hole--selected]="isSame(selected(), cell)"
+                  [class.grid__hole--shake]="isSame(shaking(), cell)"
+                  [attr.aria-label]="cell.row + ' per ' + cell.col"
+                  (click)="select(cell)"
+                >{{ isSame(selected(), cell) ? typed() || '?' : '' }}</button>
+              } @else {
+                <span class="grid__cell" role="gridcell" [class.grid__cell--crossed]="isCrossed(cell)" [class.grid__cell--solved]="cell.solved">{{ cell.value }}</span>
+              }
+            }
+          </div>
+        }
+      </div>
+
+      @if (selected(); as cell) {
+        <p class="grid-question" aria-live="polite">{{ cell.row }} × {{ cell.col }} = <strong class="grid-question__answer">{{ typed() || '?' }}</strong></p>
+      }
+      <div class="keypad" aria-label="Tastierino">
+        @for (digit of keypad; track digit) {
+          <button class="keypad__key" type="button" (click)="press(digit)">{{ digit }}</button>
+        }
+        <button class="keypad__key keypad__key--erase" type="button" aria-label="Cancella" (click)="erase()">⌫</button>
+        <button class="keypad__key" type="button" (click)="press('0')">0</button>
+        <button class="keypad__key keypad__key--ok" type="button" (click)="confirm()">OK</button>
+      </div>
+      <p class="answer-help">Tocca un buco, scrivi il risultato e premi OK (o Invio)</p>
+    </div>
+  }
+</section>

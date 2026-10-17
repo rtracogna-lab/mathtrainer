@@ -767,3 +767,49 @@ describe('Conta gli zeri', () => {
     expect(wrong.question!.distractors).toContain(wrong.numbers[0].value);
   });
 });
+
+describe('Fattore mancante', () => {
+  const missing = VARIANTS.missing;
+
+  function seeded(seed: number): () => number {
+    let state = seed;
+    return () => {
+      state = (state * 16807) % 2147483647;
+      return state / 2147483647;
+    };
+  }
+
+  it('asks for the missing factor of a multiplication', () => {
+    for (let seed = 1; seed <= 200; seed += 1) {
+      const game = new NumberRainGame(missing, seeded(seed));
+      const { text, answer, distractors, fact } = game.question!;
+      const [, left, right, product] = /^(\d+|\?) × (\d+|\?) = (\d+)$/.exec(text)!;
+      const shown = Number(left === '?' ? right : left);
+      expect(shown * answer).toBe(Number(product));
+      expect(game.target).toBe(answer);
+      expect(fact).toEqual([shown, answer]);
+      expect(distractors).not.toContain(answer);
+      expect(distractors.length).toBeGreaterThanOrEqual(2);
+      expect(distractors.every((value) => value > 0)).toBe(true);
+    }
+  });
+
+  it('only shows the easy tables in easy mode', () => {
+    for (let seed = 1; seed <= 100; seed += 1) {
+      const [shown] = new NumberRainGame(missing, seeded(seed), { easy: true }).question!.fact!;
+      expect([2, 3, 4, 5, 10]).toContain(shown);
+    }
+  });
+
+  it('gives 10 points for the missing factor and takes 5 for a wrong one', () => {
+    const game = new NumberRainGame(missing, seeded(11));
+    const { answer, distractors } = game.question!;
+    game.numbers = [
+      { id: 101, value: distractors[0], lane: 0, y: 0.5 },
+      { id: 102, value: answer, lane: 1, y: 0.5 },
+    ];
+    expect(game.select(101)).toEqual(expect.objectContaining({ type: 'mismatch', penalty: 5 }));
+    expect(game.select(102)).toEqual(expect.objectContaining({ type: 'match', sum: 10 }));
+    expect(game.bonus).toBe(missing.startBonus - 5 + 10);
+  });
+});

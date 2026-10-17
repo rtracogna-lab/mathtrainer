@@ -1,0 +1,106 @@
+<section class="skill-view">
+  <a class="skill-view__back" routerLink="/giochi">&#8592; Torna ai giochi</a>
+  <h1 class="skill-view__title"><span class="skill-view__symbol" aria-hidden="true">🏁</span> Ripasso finale</h1>
+
+  @if (phase() === 'map') {
+    <section class="exercise-card" aria-labelledby="review-title">
+      <h2 id="review-title">Come vanno le tabelline?</h2>
+      <p class="rules-example">Ogni volta che giochi a un gioco del percorso tabelline, qui si ricorda cosa sai già e cosa è da ripassare.</p>
+
+      <div class="review-path-status" [class.review-path-status--locked]="locked()">
+        @if (locked()) {
+          <p class="review-path-status__title">🔒 Per sbloccare il ripasso finisci almeno una volta tutti questi giochi:</p>
+        } @else {
+          <p class="review-path-status__title">✅ Hai fatto tutti i giochi del percorso: il ripasso è sbloccato!</p>
+        }
+        <ul class="review-games">
+          @for (game of reviewGames; track game.id) {
+            @let done = played().includes(game.id);
+            <li class="review-games__item" [class.review-games__item--done]="done">
+              <span aria-hidden="true">{{ done ? '✅' : '⬜' }}</span>
+              @if (done) {
+                <span>{{ game.name }}</span>
+              } @else {
+                <a [routerLink]="game.route">{{ game.name }}</a> <span class="review-games__todo">da fare</span>
+              }
+            </li>
+          }
+        </ul>
+      </div>
+
+      <div class="grid" role="grid" aria-label="Tabelline imparate">
+        <div class="grid__row" role="row">
+          <span class="grid__corner" role="columnheader">×</span>
+          @for (col of factors; track col) {
+            <span class="grid__head" role="columnheader">{{ col }}</span>
+          }
+        </div>
+        @for (row of factors; track row) {
+          <div class="grid__row" role="row">
+            <span class="grid__head" role="rowheader">{{ row }}</span>
+            @for (col of factors; track col) {
+              <span class="grid__cell" role="gridcell" [class]="'review-cell--' + status(row, col)">{{ row * col }}</span>
+            }
+          </div>
+        }
+      </div>
+
+      <ul class="review-legend">
+        <li><span class="review-dot review-cell--weak"></span> Da ripassare: <strong>{{ counts().weak }}</strong></li>
+        <li><span class="review-dot review-cell--learning"></span> Quasi: <strong>{{ counts().learning }}</strong></li>
+        <li><span class="review-dot review-cell--known"></span> Imparate: <strong>{{ counts().known }}</strong></li>
+        <li><span class="review-dot review-cell--new"></span> Mai provate: <strong>{{ counts().new }}</strong></li>
+      </ul>
+
+      <div class="result-actions">
+        <button class="secondary-button" type="button" (click)="reset()">Azzera</button>
+        <button class="primary-button" type="button" [disabled]="locked()" (click)="start()">{{ locked() ? '🔒 Ripasso bloccato' : 'Ripassa 10 tabelline' }}</button>
+      </div>
+    </section>
+  } @else if (phase() === 'done') {
+    <section class="exercise-card" aria-labelledby="review-title">
+      <div class="result-icon" aria-hidden="true">🎉</div>
+      <h2 id="review-title">Ripasso finito!</h2>
+      <p class="result-score">Risposte giuste: <strong>{{ correctCount() }}</strong> su {{ answered().length }}.</p>
+      <div class="results" aria-label="Risposte del ripasso">
+        @for (item of answered(); track $index) {
+          <div class="result-row">
+            <span class="result-operation">{{ item.first }} × {{ item.second }} = {{ item.answer }}</span>
+            <span>@if (!item.correct) { era {{ item.first * item.second }} }</span>
+            <span class="result-status" [class.correct]="item.correct" [class.incorrect]="!item.correct">{{ item.correct ? '&#10003;' : '&#10007;' }}</span>
+          </div>
+        }
+      </div>
+      <div class="result-actions">
+        <button class="secondary-button" type="button" (click)="phase.set('map')">Vedi la tabella</button>
+        <button class="primary-button" type="button" (click)="start()">Ripassa ancora</button>
+      </div>
+    </section>
+  } @else {
+    <div class="exercise-card game-card">
+      <div class="game-status">
+        <p class="game-bonus">Domanda <strong>{{ index() + 1 }}</strong> <span class="game-bonus__target">/ {{ queue().length }}</span></p>
+        <p class="game-info">Giuste: {{ correctCount() }}</p>
+      </div>
+      @if (current(); as fact) {
+        <p class="grid-question review-question" aria-live="polite">{{ fact.first }} × {{ fact.second }} = <strong class="grid-question__answer">{{ typed() || '?' }}</strong></p>
+      }
+      <p class="review-feedback" aria-live="polite">
+        @if (mistake(); as item) {
+          No: {{ item.first }} × {{ item.second }} fa <strong>{{ item.first * item.second }}</strong>. Ricordatelo!
+        } @else {
+          &nbsp;
+        }
+      </p>
+      <div class="keypad" aria-label="Tastierino">
+        @for (digit of keypad; track digit) {
+          <button class="keypad__key" type="button" (click)="press(digit)">{{ digit }}</button>
+        }
+        <button class="keypad__key keypad__key--erase" type="button" aria-label="Cancella" (click)="erase()">⌫</button>
+        <button class="keypad__key" type="button" (click)="press('0')">0</button>
+        <button class="keypad__key keypad__key--ok" type="button" (click)="confirm()">OK</button>
+      </div>
+      <p class="answer-help">Scrivi il risultato e premi OK (o Invio)</p>
+    </div>
+  }
+</section>

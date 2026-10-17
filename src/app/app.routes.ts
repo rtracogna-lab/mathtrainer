@@ -7,6 +7,9 @@ import { DivisionComponent } from './skills/division/division';
 import { TablesComponent } from './skills/tables/tables';
 import { NumberRainComponent } from './games/number-rain/number-rain';
 import { GamesComponent } from './games/games';
+import { HoleGridComponent } from './games/hole-grid/hole-grid';
+import { BattleshipComponent } from './games/battleship/battleship';
+import { ReviewComponent } from './review/review';
 
 export const routes: Routes = [
 	{ path: '', component: HomeComponent, title: 'Allenamento di matematica' },
@@ -23,5 +26,9 @@ export const routes: Routes = [
 	{ path: 'caccia-ai-multipli', component: NumberRainComponent, title: 'Caccia ai multipli', data: { variant: 'multiples' } },
 	{ path: 'conta-gli-zeri', component: NumberRainComponent, title: 'Conta gli zeri', data: { variant: 'zeros' } },
 	{ path: 'divisione-bersaglio', component: NumberRainComponent, title: 'Divisione bersaglio', data: { variant: 'division' } },
+	{ path: 'fattore-mancante', component: NumberRainComponent, title: 'Fattore mancante', data: { variant: 'missing' } },
+	{ path: 'griglia-a-buchi', component: HoleGridComponent, title: 'La griglia a buchi' },
+	{ path: 'battaglia-navale', component: BattleshipComponent, title: 'Battaglia navale' },
+	{ path: 'ripasso', component: ReviewComponent, title: 'Ripasso finale' },
 	{ path: '**', redirectTo: '' },
 ];

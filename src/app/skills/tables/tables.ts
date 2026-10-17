@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FactStats } from '../../review/fact-stats';
 
 const CHOICE_BLINK_SECONDS = 10;
 const CHOICE_TIME_LIMIT_SECONDS = 20;
@@ -24,6 +25,7 @@ export class TablesComponent {
 	private questionPool: Question[] = [];
 	private timerId: ReturnType<typeof setInterval> | undefined;
 	private readonly destroyRef = inject(DestroyRef);
+	private readonly factStats = inject(FactStats);
 
 	constructor() {
 		this.destroyRef.onDestroy(() => this.stopTimer());
@@ -77,6 +79,7 @@ export class TablesComponent {
 		const question = this.currentQuestion();
 		const timedOut = this.selectedMode() === 'choice' && this.elapsedSeconds() >= CHOICE_TIME_LIMIT_SECONDS;
 		const isCorrect = value === question.first * question.second;
+		this.factStats.record(question.first, question.second, isCorrect);
 		const score = isCorrect ? Math.max(0, 20 - this.elapsedSeconds()) : -10;
 		this.answeredQuestions.update((questions) => [
 			...questions,
@@ -97,6 +100,7 @@ export class TablesComponent {
 
 		if (this.currentQuestionIndex() === this.totalQuestions - 1) {
 			this.isFinished.set(true);
+			this.factStats.markPlayed('tables');
 			this.stopTimer();
 			return;
 		}

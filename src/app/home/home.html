@@ -4,7 +4,10 @@
 
   <div class="home__grid">
     @for (skill of skills; track skill.route) {
-      <a class="skill-card" [routerLink]="skill.route">
+      <a class="skill-card" [class.skill-card--review]="skill.badge" [routerLink]="skill.route">
+        @if (skill.badge) {
+          <span class="skill-card__badge">{{ skill.badge }}</span>
+        }
         <span class="skill-card__icon" aria-hidden="true">{{ skill.symbol }}</span>
         <h2 class="skill-card__title">{{ skill.name }}</h2>
         <p class="skill-card__description">{{ skill.description }}</p>

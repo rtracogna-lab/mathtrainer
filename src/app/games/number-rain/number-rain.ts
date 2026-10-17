@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, input, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
+import { FactStats } from '../../review/fact-stats';
 import { FallingNumber, GameEvent, LANES, NumberRainGame, VARIANTS, VariantId } from './number-rain.game';
 
 const POPUP_MS = 900;
@@ -141,6 +142,24 @@ const TEXTS: Record<VariantId, Texts> = {
     hint: 'Tocca il risultato giusto: conta gli zeri!',
     groups: 'risposte',
   },
+  missing: {
+    title: 'Fattore mancante',
+    symbol: '?',
+    range: 'da <strong>1</strong> a <strong>12</strong>',
+    pick: 'il numero che manca',
+    goal: "nella tabellina scritta sopra il campo 🎯 (7 × ? = 56 → <strong>8</strong>)",
+    reward: 'guadagni <strong>10 punti</strong> e arriva una nuova tabellina',
+    landing: 'ed è il numero giusto perdi <strong>3 punti</strong>: gli altri lasciali pure cadere',
+    triple: null,
+    jolly: 'prende da solo tutti i numeri giusti in campo',
+    target: 'Trucco: ripeti la tabellina finché arrivi al risultato (7, 14, 21, 28, 35, 42, 49, 56: 8 passi, manca l\'8).',
+    targetLabel: '',
+    wrong: 'Se tocchi un numero sbagliato perdi 5 punti.',
+    easy: 'il numero scritto è sempre della tabellina del 2, 3, 4, 5 o 10',
+    example: 'Esempio: 7 × ? = 56 → 8 ✅ · 7 ❌ · 9 ❌ · ? × 6 = 42 → 7 ✅',
+    hint: 'Tocca il numero che completa la tabellina',
+    groups: 'risposte',
+  },
   division: {
     title: 'Divisione bersaglio',
     symbol: ':',
@@ -209,6 +228,7 @@ export class NumberRainComponent {
   protected readonly popups = signal<Popup[]>([]);
 
   private game = new NumberRainGame();
+  private readonly factStats = inject(FactStats);
   private frameId: number | undefined;
   private lastFrame = 0;
   private nextPopupId = 1;
@@ -246,8 +266,14 @@ export class NumberRainComponent {
     if (this.phase() !== 'playing') {
       return;
     }
+    // La domanda cambia appena si risponde giusto: va letta prima. Il jolly non conta per il ripasso.
+    const fact = this.game.question?.fact;
+    const jolly = this.game.numbers.find((number) => number.id === id)?.jolly ?? false;
     const event = this.game.select(id);
     if (event !== null) {
+      if (fact !== undefined && !jolly && event.type !== 'landed') {
+        this.factStats.record(fact[0], fact[1], event.type === 'match');
+      }
       this.handleEvent(event);
     }
     this.sync();
@@ -266,6 +292,9 @@ export class NumberRainComponent {
   private finishIfOver(): void {
     if (this.game.isOver) {
       this.stopLoop();
+      if (this.variant() === 'missing') {
+        this.factStats.markPlayed('missing');
+      }
       this.phase.set(this.game.isWon ? 'won' : 'over');
     }
   }

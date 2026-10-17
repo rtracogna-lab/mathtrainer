@@ -1,0 +1,101 @@
+.sea {
+  display: grid;
+  gap: 3px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.sea__row {
+  display: grid;
+  grid-template-columns: repeat(var(--size), 1fr);
+  gap: 3px;
+}
+
+.sea .grid__corner,
+.sea .grid__head {
+  font-size: clamp(0.8rem, 3vw, 1.1rem);
+}
+
+.sea__square {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border: 2px solid #9cc7e8;
+  border-radius: 6px;
+  background: #d6ecfa;
+  font-size: clamp(0.9rem, 3.5vw, 1.3rem);
+  line-height: 1;
+}
+
+button.sea__square {
+  cursor: pointer;
+}
+
+button.sea__square:hover {
+  border-color: #2b6cb0;
+}
+
+.sea__square--selected {
+  border: 3px solid #f9a825;
+  background: #fff8e1;
+}
+
+.sea__square--miss {
+  border-color: #d6ecfa;
+  background: #eef6fc;
+  color: #7aa7c7;
+}
+
+.sea__square--hit {
+  border-color: #e57373;
+  background: #fdecea;
+}
+
+.sea__square--sunk {
+  border-color: #455a64;
+  background: #607d8b;
+}
+
+.sea-fleet {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin: 0;
+}
+
+.sea-ship {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.sea-ship__part {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 2px;
+  background: #2b3a67;
+}
+
+.sea-ship--sunk .sea-ship__part {
+  background: #e57373;
+  opacity: 0.5;
+}
+
+.sea-message {
+  min-height: 1.5rem;
+  margin: 0.75rem 0 0;
+  color: #2b3a67;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.sea-message--wrong {
+  color: #c62828;
+}
+
+.sea-hint {
+  color: #888;
+  font-size: 1.1rem;
+  font-weight: 600;
+}

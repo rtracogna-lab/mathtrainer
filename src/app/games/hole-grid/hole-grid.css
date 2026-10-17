@@ -1,0 +1,138 @@
+.grid {
+  display: grid;
+  gap: 2px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.grid__row {
+  display: grid;
+  grid-template-columns: repeat(11, 1fr);
+  gap: 2px;
+}
+
+.grid__corner,
+.grid__head,
+.grid__cell {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  padding: 0;
+  border-radius: 4px;
+  font-size: clamp(0.7rem, 2.6vw, 1rem);
+  font-weight: 600;
+}
+
+.grid__corner,
+.grid__head {
+  background: #2b3a67;
+  color: #fff;
+  font-weight: 800;
+}
+
+.grid__head--active {
+  background: #f9a825;
+  color: #222;
+}
+
+.grid__head--empty {
+  outline: 2px dashed #f9a825;
+  outline-offset: -3px;
+}
+
+.grid__cell {
+  background: #f1f3f9;
+  color: #555;
+}
+
+.grid__cell--crossed {
+  background: #fff4d6;
+}
+
+.grid__cell--solved {
+  background: #e3f4e4;
+  color: #2e7d32;
+  font-weight: 800;
+}
+
+.grid__hole {
+  border: 2px dashed #9aa6c4;
+  background: #fff;
+  color: #2b3a67;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.grid__hole.grid__cell--crossed {
+  background: #fffaf0;
+}
+
+.grid__hole--selected {
+  border: 3px solid #f9a825;
+  background: #fff8e1;
+}
+
+.grid__hole--shake {
+  border-color: #c62828;
+  background: #fdecea;
+  color: #c62828;
+  animation: shake 0.4s ease;
+}
+
+.grid-stars {
+  margin: 0 0 0.5rem;
+  color: #f9a825;
+  font-size: 2.5rem;
+  letter-spacing: 0.3rem;
+}
+
+.grid-stars__off {
+  color: #ddd;
+}
+
+.grid-question {
+  margin: 1rem 0 0.75rem;
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.grid-question__answer {
+  display: inline-block;
+  min-width: 3ch;
+  border-bottom: 3px solid #2b3a67;
+  color: #2b3a67;
+}
+
+.keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.keypad__key {
+  padding: 0.7rem 0;
+  border: 2px solid #ccd3e0;
+  border-radius: 10px;
+  background: #f8f9fc;
+  color: #222;
+  font-size: 1.4rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.keypad__key:active {
+  transform: scale(0.96);
+}
+
+.keypad__key--erase {
+  color: #c62828;
+}
+
+.keypad__key--ok {
+  border-color: #2b3a67;
+  background: #2b3a67;
+  color: #fff;
+}
